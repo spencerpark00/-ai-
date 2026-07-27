@@ -104,6 +104,27 @@ WITH p, sys, defects, collect({ac:c.aircraft, cond:c.condition, fs:c.fsFrom, str
 RETURN p.name AS part, p.caseCount AS total, p.confidence AS conf, p.isGeneric AS generic,
        sys.code AS sysCode, sys.name AS sysName, defects, cs[..3] AS cases`;
 
+// ── 부품의 정비절차·공구·주의사항 (FAA 핸드북 지식) ──
+// 절차 기준으로 묶어 중복 제거. 어떤 결함에 적용되는지는 defects 로 유지.
+const Q_PROCEDURE = `
+MATCH (p:Part) WHERE toUpper(p.name)=toUpper($part)
+MATCH (d:Defect)-[:OCCURS_ON]->(p)
+MATCH (d)-[:REQUIRES_PROCEDURE]->(pr:Procedure)
+WITH pr, collect(DISTINCT d.name) AS defects
+OPTIONAL MATCH (pr)-[:HAS_STEP]->(st:Step)
+WITH pr, defects, st ORDER BY st.seq
+WITH pr, defects, collect(DISTINCT st.name) AS steps
+OPTIONAL MATCH (pr)-[:REQUIRES_TOOL]->(t:Tool)
+WITH pr, defects, steps, collect(DISTINCT t.name) AS tools
+OPTIONAL MATCH (pr)-[:HAS_WARNING]->(w:SafetyWarning)
+OPTIONAL MATCH (pr)-[:SOURCED_FROM]->(doc:Document)
+WITH pr, defects, steps, tools,
+     collect(DISTINCT {text:w.text, type:w.type, src:w.sourcePage}) AS warnings,
+     head(collect(doc.title)) AS source
+RETURN pr.name AS procedure, pr.nameEn AS procedureEn, pr.description AS desc,
+       pr.sourcePage AS page, defects, steps, tools, warnings, source
+ORDER BY pr.id`;
+
 // 환류 사례 포함 여부(검증사례)
 const Q_VERIFIED = `
 MATCH (v:VerifiedCase)-[:ON_PART]->(p:Part) WHERE toUpper(p.name)=toUpper($part)
@@ -159,7 +180,9 @@ const server = http.createServer(async (req,res)=>{
       if(!part) return json(res, {found:false, term});
       const rows = await cypher(Q_PART, {part});
       const vrows = await cypher(Q_VERIFIED, {part});
-      return json(res, {found:true, term, part, data:rows[0]||null, verified:vrows});
+      let procs = [];
+      try { procs = await cypher(Q_PROCEDURE, {part}); } catch(e){ procs = []; }
+      return json(res, {found:true, term, part, data:rows[0]||null, verified:vrows, procedures:procs});
     }catch(e){ return json(res, {error:e.message}, 500); }
   }
 
