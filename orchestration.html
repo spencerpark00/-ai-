@@ -1,0 +1,162 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MRO Copilot — 오케스트레이션 실행판 (실시간)</title>
+<style>
+  :root{--bg:#0a0e14;--panel:#131a24;--panel2:#1a2330;--line:#26313f;--line2:#334155;
+    --txt:#e8eef5;--dim:#8a99ab;--dim2:#5f6f80;--acc:#22d3ee;--acc2:#2dd4bf;--ok:#4ade80;
+    --warn:#fbbf24;--dang:#f87171;--human:#4ade80;--ai:#22d3ee;--robot:#a78bfa;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:'Pretendard','Malgun Gothic',sans-serif;font-size:14px;line-height:1.55}
+  .device{max-width:1180px;margin:16px auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .top{display:flex;align-items:center;gap:14px;padding:13px 20px;background:linear-gradient(90deg,#0d1420,#131a24);border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+  .logo small{color:var(--dim);font-weight:500;font-size:11px;margin-left:2px}
+  .top .wo{margin-left:auto;display:flex;gap:14px;align-items:center;font-size:12px;color:var(--dim)}
+  .top .wo b{color:var(--txt);font-weight:600}
+  .conn{font-size:11px;padding:3px 10px;border-radius:20px}
+  .conn.on{background:rgba(74,222,128,.12);color:var(--ok);border:1px solid rgba(74,222,128,.3)}
+  .conn.off{background:rgba(248,113,113,.12);color:var(--dang);border:1px solid rgba(248,113,113,.3)}
+  .nav{display:flex;gap:8px;padding:10px 20px;background:var(--panel2);border-bottom:1px solid var(--line)}
+  .nav a{font-size:12px;color:var(--dim);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid transparent}
+  .nav a.on{color:var(--acc);border-color:rgba(34,211,238,.3);background:rgba(34,211,238,.06)}
+  .legend{display:flex;gap:20px;padding:12px 20px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .legend .a{display:flex;align-items:center;gap:6px}
+  .legend .a i{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .legend .prog{margin-left:auto}.legend .prog b{color:var(--ok)}
+  .content{padding:22px 26px 26px}
+  .grid{display:grid;grid-template-columns:1fr 300px;gap:22px}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}}
+  .step{display:grid;grid-template-columns:44px 1fr;gap:16px;padding-bottom:8px}
+  .rail{display:flex;flex-direction:column;align-items:center}
+  .node{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;border:2px solid var(--line2);background:var(--panel2);z-index:2}
+  .line{flex:1;width:2px;background:var(--line);margin:2px 0;min-height:18px}
+  .step:last-child .line{display:none}
+  .step.done .node{border-color:var(--ok);background:rgba(74,222,128,.12);color:var(--ok)}
+  .step.gate .node{border-color:var(--dang);background:rgba(248,113,113,.12);color:var(--dang)}
+  .step.active .node{border-color:var(--acc);background:rgba(34,211,238,.15);color:var(--acc);box-shadow:0 0 0 4px rgba(34,211,238,.1)}
+  .body{padding-bottom:18px}
+  .srow{display:flex;align-items:center;gap:9px;margin-bottom:4px;flex-wrap:wrap}
+  .srow h4{font-size:14.5px;font-weight:600}
+  .who{font-size:10.5px;padding:2px 8px;border-radius:5px;font-weight:600}
+  .w-h{background:rgba(74,222,128,.15);color:var(--human)}
+  .w-a{background:rgba(34,211,238,.15);color:var(--ai)}
+  .w-r{background:rgba(167,139,250,.15);color:var(--robot)}
+  .stat{margin-left:auto;font-size:11px;color:var(--dim)}.stat.ok{color:var(--ok)}
+  .desc{font-size:12.5px;color:var(--dim);line-height:1.55}
+  .desc code{background:#0b1119;color:var(--acc);padding:1px 5px;border-radius:4px;font-size:11px}
+  .gatebox{margin-top:9px;border-radius:9px;padding:11px 13px;font-size:12px}
+  .gatebox.block{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.28)}
+  .gatebox.pass{background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.25)}
+  .gatebox b{font-size:11px}.gatebox.block b{color:var(--dang)}.gatebox.pass b{color:var(--ok)}
+  .gatebox p{margin-top:4px;color:var(--dim);line-height:1.5}
+  .gatebox code{background:#0b1119;padding:1px 5px;border-radius:4px;font-size:10.5px;color:var(--warn)}
+  .side .card{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:15px;margin-bottom:14px}
+  .side h3{font-size:11px;letter-spacing:.5px;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:12px}
+  .cst{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #1a212b}
+  .cst:last-child{border:none}.cst span{color:var(--dim)}.cst b{color:var(--acc)}
+  .jbox{font-size:12px;line-height:1.7}.jbox .row{display:flex;justify-content:space-between;padding:3px 0}
+  .jbox .row span{color:var(--dim)}.jbox .row b{color:var(--txt)}
+  .jbox .hl{color:var(--warn)}
+  .meta{display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--dim2)}
+  .meta b{color:var(--dim)}.meta .live{color:var(--ok)}.meta .live::before{content:'●';margin-right:4px;font-size:8px;vertical-align:middle}
+  .loading{padding:60px;text-align:center;color:var(--dim2)}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--dim2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style></head><body>
+<div class="device">
+  <div class="top">
+    <div class="logo"><span class="dot"></span>MRO Copilot <small>실행 오케스트레이션 · 실시간</small></div>
+    <div class="wo"><span id="woLabel">WO 로딩…</span><span id="conn" class="conn off">연결 확인 중…</span></div>
+  </div>
+  <div class="nav">
+    <a href="/">① 정비사 단말</a>
+    <a href="/orchestration.html" class="on">② 오케스트레이션</a>
+    <a href="/robot.html">③ 로봇 검사</a>
+  </div>
+  <div class="legend">
+    <div class="a"><i style="background:var(--human)"></i>정비사</div>
+    <div class="a"><i style="background:var(--ai)"></i>AI · 오케스트레이터</div>
+    <div class="a"><i style="background:var(--robot)"></i>협동로봇</div>
+    <div class="prog" id="prog"></div>
+  </div>
+  <div class="content">
+    <div class="grid">
+      <div id="flow"><div class="loading"><span class="spin"></span> 지식그래프에서 작업지시 조회 중…</div></div>
+      <div class="side" id="side"></div>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+</div>
+<script>
+const RISK_ICON={상:'⚠',중:'●',하:'○'};
+async function checkConn(){
+  const c=document.getElementById('conn');
+  try{const r=await fetch('/api/parts');const j=await r.json();
+    if(Array.isArray(j)){c.className='conn on';c.textContent='● 지식그래프 연결됨';}
+  }catch(e){c.className='conn off';c.textContent='✗ 서버 미연결';}
+}
+function whoOf(name){
+  if(name.includes('로봇')||name.includes('촬영'))return['w-r','로봇'];
+  if(name.includes('판정')||name.includes('승인')||name.includes('안전')||name.includes('기록'))return['w-h','정비사'];
+  return['w-a','AI'];
+}
+async function load(){
+  await checkConn();
+  const r=await fetch('/api/workflow');const j=await r.json();
+  if(j.error||!j.wo){document.getElementById('flow').innerHTML='<div class="loading">작업지시 데이터를 찾지 못했습니다. Phase 2 적재를 확인하세요.</div>';return;}
+  const w=j.wo, jd=j.judgment;
+  document.getElementById('woLabel').innerHTML='WO <b>'+w.wo+'</b> · '+w.aircraft;
+  const steps=(w.steps||[]).sort((a,b)=>a.seq-b.seq);
+  const doneN=steps.filter(s=>s.status==='DONE').length;
+  document.getElementById('prog').innerHTML='진행 <b>'+doneN+'</b> / '+steps.length+' 단계 · 게이트 통과';
+
+  const GATE={3:['block','🔒 C-07 승인 게이트','위험등급 상 단계는 정비사 승인 없이 전이 불가. 승인 후 게이트 개방.'],
+    5:['block','🔒 C-12 판정 게이트 · 불변 원칙','AI가 <code>결함</code>을 직접 확정하는 경로가 스키마에 없음. 결함후보 → 정비사 판정 → 결함 확정만 가능.'],
+    6:['pass','C-13 · C-14 등록 게이트','필수증빙 전건 연결(C-14) + 정비사 승인(C-13) 후에만 검증사례 생성 → 다음 작업 재사용.']};
+
+  let html='';
+  steps.forEach((s,i)=>{
+    const [wcls,wlbl]=whoOf(s.name);
+    const isGate=GATE[s.seq];
+    const cls=s.status==='DONE'?'done':(i===doneN?'active':(isGate&&isGate[0]==='block'?'gate':''));
+    const icon=s.status==='DONE'?'✓':s.seq;
+    const statTxt=s.status==='DONE'?(s.approval?'승인 완료':'완료'):(i===doneN?'진행 중':'대기');
+    const riskTag=s.risk?('<code>'+s.risk+'</code>'):'';
+    let gate='';
+    if(isGate)gate='<div class="gatebox '+isGate[0]+'"><b>'+isGate[1]+'</b><p>'+isGate[2]+'</p></div>';
+    html+='<div class="step '+cls+'"><div class="rail"><div class="node">'+icon+'</div><div class="line"></div></div>'+
+      '<div class="body"><div class="srow"><h4>'+s.seq+' · '+s.name+'</h4>'+
+      '<span class="who '+wcls+'">'+wlbl+'</span><span class="stat '+(s.status==='DONE'?'ok':'')+'">'+statTxt+'</span></div>'+
+      '<div class="desc">위험등급 '+riskTag+(s.approval?' · 승인 필요':'')+'</div>'+gate+'</div></div>';
+  });
+  document.getElementById('flow').innerHTML=html;
+
+  // side
+  let jhtml='';
+  if(jd){jhtml='<div class="card"><h3>정비사 판정 결과 (실데이터)</h3><div class="jbox">'+
+    '<div class="row"><span>결함후보</span><b>'+jd.cand+'</b></div>'+
+    '<div class="row"><span>AI 신뢰도</span><b>'+(jd.conf||'-')+'</b></div>'+
+    '<div class="row"><span>정비사 판정</span><b class="hl">'+jd.verdict+'</b></div>'+
+    '<div class="row"><span>판정자</span><b>'+jd.by+'</b></div>'+
+    '<div class="row"><span>확정 결함</span><b>'+jd.defect+'</b></div>'+
+    '<div class="row"><span>조치</span><b>'+(jd.action||'-')+'</b></div></div>'+
+    '<p style="font-size:11px;color:var(--dim);margin-top:10px;line-height:1.5">AI 후보가 정비사 판정을 거쳐야만 결함으로 확정됨 <span style="color:var(--dim2)">(C-12 실증)</span></p></div>';}
+  jhtml+='<div class="card"><h3>실행 제약 (런타임 강제)</h3>'+
+    '<div class="cst"><span>선행단계 미완료 차단</span><b>C-06</b></div>'+
+    '<div class="cst"><span>승인 전 위험단계 차단</span><b>C-07</b></div>'+
+    '<div class="cst"><span>AI 결함 직접확정 차단</span><b>C-12</b></div>'+
+    '<div class="cst"><span>미승인 지식등록 차단</span><b>C-13</b></div>'+
+    '<div class="cst"><span>증빙 누락 완료 차단</span><b>C-14</b></div></div>'+
+    '<div class="card" style="background:linear-gradient(135deg,#132029,#0f1a24);border-color:rgba(34,211,238,.2)">'+
+    '<h3 style="color:var(--acc)">핵심</h3><p style="font-size:12.5px;color:var(--txt);line-height:1.6">안내가 아니라 <b>차단</b>이다.<br>잘못된 다음 단계로 가는 <b style="color:var(--acc)">경로 자체가 존재하지 않는다.</b></p></div>';
+  document.getElementById('side').innerHTML=jhtml;
+
+  document.getElementById('meta').innerHTML='<span class="live">오케스트레이터 실행 중</span>'+
+    '<span><b>대상</b> '+(w.partName||'-')+' · 계통 '+(w.sysCode||'-')+'</span>'+
+    '<span><b>위치</b> '+(w.loc||'-')+'</span>'+
+    '<span><b>목적</b> '+(w.purpose||'-')+'</span>';
+}
+load();
+</script>
+</body></html>

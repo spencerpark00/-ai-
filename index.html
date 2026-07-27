@@ -1,0 +1,246 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MRO Copilot — 정비사 지원 단말 (실시간)</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#131a24; --panel2:#1a2330; --line:#26313f; --line2:#334155;
+    --txt:#e8eef5; --dim:#8a99ab; --dim2:#5f6f80;
+    --acc:#22d3ee; --acc2:#2dd4bf; --ok:#4ade80; --warn:#fbbf24; --dang:#f87171;
+    --corr:#fb923c; --crack:#f87171; --dmg:#fbbf24; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);
+    font-family:'Pretendard','Malgun Gothic',-apple-system,sans-serif;font-size:14px;line-height:1.55}
+  .device{max-width:1180px;margin:16px auto;background:var(--panel);
+    border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .top{display:flex;align-items:center;gap:14px;padding:13px 20px;
+    background:linear-gradient(90deg,#0d1420,#131a24);border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+  .logo small{color:var(--dim);font-weight:500;font-size:11px;margin-left:2px}
+  .top .wo{margin-left:auto;display:flex;gap:16px;align-items:center;font-size:12px;color:var(--dim)}
+  .top .wo b{color:var(--txt);font-weight:600}
+  .conn{font-size:11px;padding:3px 10px;border-radius:20px}
+  .conn.on{background:rgba(74,222,128,.12);color:var(--ok);border:1px solid rgba(74,222,128,.3)}
+  .conn.off{background:rgba(248,113,113,.12);color:var(--dang);border:1px solid rgba(248,113,113,.3)}
+  .qbar{padding:16px 20px;background:var(--panel2);border-bottom:1px solid var(--line)}
+  .qrow{display:flex;gap:10px;align-items:center}
+  .mic{width:42px;height:42px;border-radius:50%;flex-shrink:0;border:none;cursor:pointer;
+    background:linear-gradient(135deg,var(--acc),var(--acc2));color:#03151a;font-size:18px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(34,211,238,.35);transition:transform .15s}
+  .mic:active{transform:scale(.92)}
+  .qinput{flex:1;background:#0b1119;border:1px solid var(--line2);border-radius:11px;
+    padding:11px 15px;color:var(--txt);font-size:15px;font-family:inherit}
+  .qinput::placeholder{color:var(--dim2)}
+  .go{padding:11px 20px;border-radius:11px;border:none;cursor:pointer;font-weight:700;font-size:14px;
+    background:var(--acc);color:#03151a;font-family:inherit}
+  .presets{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .preset{background:#0b1119;border:1px solid var(--line);border-radius:8px;padding:6px 12px;
+    font-size:12px;color:var(--dim);cursor:pointer;transition:all .15s}
+  .preset:hover{border-color:var(--acc);color:var(--acc)}
+  .content{padding:20px;min-height:420px}
+  .echo{display:none;align-items:center;gap:9px;color:var(--acc);font-size:13px;margin-bottom:16px;
+    padding:9px 13px;background:rgba(34,211,238,.06);border-radius:9px;border:1px solid rgba(34,211,238,.15)}
+  .echo.show{display:flex}
+  .empty,.nores{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:60px 20px;color:var(--dim2);text-align:center}
+  .empty .big{font-size:38px;margin-bottom:14px;opacity:.5}
+  .empty p,.nores p{font-size:13px;max-width:380px;line-height:1.6}
+  .results{display:none}.results.show{display:block}
+  .headline{background:linear-gradient(135deg,#132029,#0f1a24);border:1px solid rgba(34,211,238,.25);
+    border-radius:13px;padding:17px 19px;margin-bottom:16px}
+  .headline .q{color:var(--dim);font-size:12px;margin-bottom:6px}
+  .headline .a{font-size:16px;font-weight:700;line-height:1.5}
+  .headline .a b{color:var(--acc)}
+  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:16px}
+  .card h3{font-size:12px;letter-spacing:.5px;color:var(--dim);text-transform:uppercase;font-weight:600;
+    margin-bottom:13px;display:flex;align-items:center;gap:7px}
+  .defect{margin-bottom:11px}.defect:last-child{margin-bottom:0}
+  .defect .dl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+  .defect .dl span{color:var(--dim);font-variant-numeric:tabular-nums}
+  .track{height:8px;background:#0b1119;border-radius:5px;overflow:hidden}
+  .track div{height:100%;border-radius:5px;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+  .ev{background:#0b1119;border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:10px}
+  .ev:last-child{margin-bottom:0}
+  .ev .eh{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;gap:8px}
+  .ev .ac{font-weight:700;font-size:13px;color:var(--acc2)}
+  .ev .loc{font-size:11px;color:var(--warn);font-family:monospace;background:rgba(251,191,36,.1);padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .ev .txt{font-size:11.5px;color:var(--dim);line-height:1.5;font-family:monospace}
+  .ev .src{font-size:10px;color:var(--dim2);margin-top:7px}
+  .ev.verified{border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.05)}
+  .ev.verified .ac{color:var(--violet)}
+  .vbadge{font-size:9px;background:var(--violet);color:#0a0e14;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px}
+  .safety{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.3);border-radius:11px;padding:14px;margin-top:16px}
+  .safety .st{display:flex;align-items:center;gap:8px;color:var(--dang);font-weight:700;font-size:13px;margin-bottom:8px}
+  .safety p{font-size:12.5px;color:var(--dim);line-height:1.6}
+  .safety code{background:#0b1119;color:var(--warn);padding:1px 6px;border-radius:4px;font-size:11px}
+  .genbox{background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.25);border-radius:11px;padding:13px;margin-top:16px;font-size:12px;color:var(--dim)}
+  .genbox b{color:var(--warn)}
+  .meta{display:flex;gap:20px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--dim2)}
+  .meta b{color:var(--dim)}
+  .meta .live{color:var(--ok)}.meta .live::before{content:'●';margin-right:4px;font-size:8px;vertical-align:middle}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--dim2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style></head><body>
+<div class="device">
+  <div class="top">
+    <div class="logo"><span class="dot"></span>MRO Copilot <small>정비 지식 오케스트레이터 · 실시간</small></div>
+    <div class="wo">
+      <span>WO <b>2026-0724-01</b></span>
+      <span id="conn" class="conn off">연결 확인 중…</span>
+    </div>
+  </div>
+
+  <div class="nav" style="display:flex;gap:8px;padding:10px 20px;background:var(--panel2);border-bottom:1px solid var(--line)">
+    <a href="/" style="font-size:12px;color:var(--acc);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid rgba(34,211,238,.3);background:rgba(34,211,238,.06)">① 정비사 단말</a>
+    <a href="/orchestration.html" style="font-size:12px;color:var(--dim);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid transparent">② 오케스트레이션</a>
+    <a href="/robot.html" style="font-size:12px;color:var(--dim);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid transparent">③ 로봇 검사</a>
+  </div>
+  <div class="qbar">
+    <div class="qrow">
+      <button class="mic" onclick="ask()" title="음성 질의">🎙️</button>
+      <input class="qinput" id="q" placeholder="부품·결함을 질문하세요.  예) 동체 외판 부식 / 스트링거 / 좌석 레일"
+             onkeydown="if(event.key==='Enter')ask()">
+      <button class="go" onclick="ask()">검색</button>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="content">
+    <div class="echo" id="echo"></div>
+    <div class="empty" id="empty">
+      <div class="big">🔧</div>
+      <p>부품을 질문하면 <b>지식그래프(Neo4j)에서 실시간으로</b> 반복 결함·과거 사례·주의사항을
+         근거와 함께 조회합니다. 어떤 부품이든 실제 데이터가 있으면 응답합니다.</p>
+    </div>
+    <div class="nores" id="nores" style="display:none">
+      <div class="big" style="font-size:34px;opacity:.5">🤔</div>
+      <p id="noresTxt"></p>
+    </div>
+    <div class="results" id="results"></div>
+  </div>
+</div>
+
+<script>
+const KOR = {DAMAGED:'손상',CORRODED:'부식',CRACKED:'균열',DENTED:'찍힘',GOUGED:'긁힘',
+  PUNCTURED:'천공',WORN:'마모',DELAMINATED:'박리',BROKEN:'파손',MISSING:'누락',
+  'GROUND DAMAGE':'지상손상','MECHANIC ERROR':'작업오류','NO DISCREPANCY':'이상없음',
+  SCRATCHED:'스크래치',BENT:'변형',DEBONDED:'접착불량','OUT OF LIMITS':'허용초과'};
+const COLOR = {DAMAGED:'var(--dmg)',CORRODED:'var(--corr)',CRACKED:'var(--crack)'};
+
+async function checkConn(){
+  const c = document.getElementById('conn');
+  try{
+    const r = await fetch('/api/parts'); const j = await r.json();
+    if(Array.isArray(j)){
+      c.className='conn on'; c.textContent='● 지식그래프 연결됨 · 부품 '+j.length+'+';
+      const box = document.getElementById('presets');
+      const picks = ['동체 외판 부식','스트링거','좌석 레일','프레임','플로어 빔'];
+      box.innerHTML = picks.map(p=>`<div class="preset" onclick="preset('${p}')">💬 "${p}"</div>`).join('');
+    }
+  }catch(e){ c.className='conn off'; c.textContent='✗ 서버 미연결'; }
+}
+function preset(t){ document.getElementById('q').value=t; ask(); }
+
+async function ask(){
+  const term = document.getElementById('q').value.trim();
+  if(!term) return;
+  const echo = document.getElementById('echo');
+  echo.className='echo show';
+  echo.innerHTML = '<span class="spin"></span> "'+term+'" 인식 → 지식그래프 질의 중…';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('nores').style.display='none';
+  document.getElementById('results').className='results';
+  try{
+    const r = await fetch('/api/query?q='+encodeURIComponent(term));
+    const j = await r.json();
+    if(j.error){ throw new Error(j.error); }
+    if(!j.found || !j.data){ noRes(term); return; }
+    render(term, j);
+  }catch(e){
+    echo.innerHTML = '⚠ 조회 실패: '+e.message;
+  }
+}
+function noRes(term){
+  document.getElementById('echo').className='echo';
+  const n = document.getElementById('nores'); n.style.display='flex';
+  document.getElementById('noresTxt').innerHTML =
+    '"'+term+'"에 해당하는 부품을 지식그래프에서 찾지 못했습니다.<br>'+
+    '<span style="color:var(--dim2)">현재 PoC 범위는 ATA 53 동체구조입니다. 예: 외판, 스트링거, 프레임, 좌석 레일, 플로어 빔</span>';
+}
+
+function render(term, j){
+  const d = j.data;
+  const total = d.total||0;
+  const defects = (d.defects||[]).filter(x=>x.name);
+  const top = defects[0];
+  const cases = d.cases||[];
+  const verified = j.verified||[];
+  echoDone(term, j.part, d);
+
+  // 결함 막대
+  const bars = defects.slice(0,6).map(x=>{
+    const pct = total? Math.round(x.weight*100/total):0;
+    const col = COLOR[x.name] || 'var(--dim)';
+    const kr = KOR[x.name]||'';
+    return `<div class="defect"><div class="dl"><b>${x.name} ${kr}</b><span>${x.weight}건 · ${pct}%</span></div>
+      <div class="track"><div data-w="${pct}" style="width:0;background:${col}"></div></div></div>`;
+  }).join('');
+
+  // 외부 사례
+  const evExt = cases.filter(c=>c.sum).slice(0,2).map(c=>`
+    <div class="ev"><div class="eh"><span class="ac">${KOR[c.cond]||c.cond} · 과거 사례</span>
+      <span class="loc">${c.fs?('FR'+c.fs):''}${c.str?(' / STR'+c.str):''}</span></div>
+      <div class="txt">"${(c.sum||'').slice(0,150)}…"</div>
+      <div class="src">📄 FAA SDR · ${c.ac||'-'} · 실제 보고 원문</div></div>`).join('');
+
+  // 검증 사례 (환류)
+  const evVer = verified.slice(0,2).map(v=>`
+    <div class="ev verified"><div class="eh"><span class="ac">${KOR[v.cond]||v.cond} · 사내 검증사례<span class="vbadge">승인됨</span></span>
+      <span class="loc">${v.fs?('FR'+v.fs):''}${v.str?(' / STR'+v.str):''}</span></div>
+      <div class="txt">조치: ${v.action||'-'}</div>
+      <div class="src">✅ 정비사 승인 · ${v.by||'-'} · ${v.at||''} — 환류 지식</div></div>`).join('');
+
+  const generic = d.generic;
+  const sys = d.sysCode? (d.sysCode+' '+(d.sysName||'')) : '-';
+  const conf = d.conf!=null? d.conf+'%' : '-';
+
+  const headline = top
+    ? `이 부품은 <b>${(KOR[top.name]||top.name)}</b>이(가) 가장 많이 보고된 부위입니다 (${top.weight}건). 아래 과거 사례와 주의사항을 확인하세요.`
+    : `이 부품의 결함 이력을 조회했습니다.`;
+
+  document.getElementById('results').innerHTML = `
+    <div class="headline"><div class="q">Q. "${term}" — ${j.part}</div>
+      <div class="a">${headline}</div></div>
+    <div class="grid">
+      <div class="card">
+        <h3>📊 이 부품의 반복 결함 <span style="margin-left:auto;color:var(--dim2);font-weight:400;text-transform:none">${j.part} · 총 ${total}건</span></h3>
+        ${bars || '<p style="color:var(--dim2);font-size:12px">결함 데이터 없음</p>'}
+      </div>
+      <div class="card">
+        <h3>📍 과거 사례 <span style="margin-left:auto;color:var(--dim2);font-weight:400;text-transform:none">근거 제시</span></h3>
+        ${evVer}${evExt || (evVer?'':'<p style="color:var(--dim2);font-size:12px">좌표 보유 사례 없음</p>')}
+      </div>
+    </div>
+    ${generic ? `<div class="genbox">⚠ <b>${j.part}</b>은(는) 여러 계통에 걸쳐 보고되는 <b>총칭 부품</b>입니다(계통 집중도 ${conf}). 정확한 계통은 개별 작업지시의 실제 위치를 따릅니다. <span style="color:var(--dim2)">(설계 결정 D-006)</span></div>`
+      : `<div class="safety"><div class="st">⚠️ 주의사항 · 작업 게이트</div>
+        <p>구조 작업 전 <b style="color:var(--txt)">전원 차단·안전조치</b>가 선행됩니다. 사각지대 검사는 로봇 카메라·조명이 보조합니다.</p>
+        <p style="margin-top:8px">🔒 위험등급 <code>상</code> 단계는 정비사 승인 없이 다음 단계로 진행할 수 없습니다 <span style="color:var(--dim2)">(제약 C-07)</span></p></div>`}
+    <div class="meta">
+      <span class="live">지식그래프 실시간 조회</span>
+      <span><b>계통</b> ${sys}</span>
+      <span><b>출처</b> FAA JASC 547 · SDR 2026 31,582건</span>
+      ${verified.length?`<span style="color:var(--violet)"><b>환류</b> 사내 검증사례 ${verified.length}건 포함</span>`:''}
+    </div>`;
+  document.getElementById('results').className='results show';
+  setTimeout(()=>{document.querySelectorAll('.track div').forEach(b=>b.style.width=b.dataset.w+'%');},60);
+}
+function echoDone(term, part, d){
+  document.getElementById('echo').innerHTML =
+    '✓ "'+term+'" → 부품 <b style="color:var(--acc)">'+part+'</b> 매칭 · 계통 '+(d.sysCode||'-')+' · Neo4j 응답';
+}
+checkConn();
+</script>
+</body></html>
