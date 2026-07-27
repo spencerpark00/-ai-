@@ -4,7 +4,8 @@
 <style>
   :root{--bg:#0a0e14;--panel:#131a24;--panel2:#1a2330;--line:#26313f;--line2:#334155;
     --txt:#e8eef5;--dim:#8a99ab;--dim2:#5f6f80;--acc:#22d3ee;--acc2:#2dd4bf;--ok:#4ade80;
-    --warn:#fbbf24;--dang:#f87171;--human:#4ade80;--ai:#22d3ee;--robot:#a78bfa;}
+    --warn:#fbbf24;--dang:#f87171;--human:#4ade80;--ai:#22d3ee;--robot:#a78bfa;
+    --edge:#f59e0b;--cloud:#38bdf8;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--txt);font-family:'Pretendard','Malgun Gothic',sans-serif;font-size:14px;line-height:1.55}
   .device{max-width:1180px;margin:16px auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
@@ -20,54 +21,67 @@
   .nav{display:flex;gap:8px;padding:10px 20px;background:var(--panel2);border-bottom:1px solid var(--line)}
   .nav a{font-size:12px;color:var(--dim);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid transparent}
   .nav a.on{color:var(--acc);border-color:rgba(34,211,238,.3);background:rgba(34,211,238,.06)}
-  .legend{display:flex;gap:20px;padding:12px 20px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .legend{display:flex;gap:16px;padding:12px 20px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;color:var(--dim);flex-wrap:wrap}
   .legend .a{display:flex;align-items:center;gap:6px}
   .legend .a i{width:10px;height:10px;border-radius:3px;display:inline-block}
   .legend .prog{margin-left:auto}.legend .prog b{color:var(--ok)}
-  .content{padding:22px 26px 26px}
-  .grid{display:grid;grid-template-columns:1fr 300px;gap:22px}
+  .content{padding:20px 24px 24px}
+  .phase{font-size:11px;letter-spacing:1px;color:var(--dim2);text-transform:uppercase;font-weight:700;margin:14px 0 8px;padding-left:2px}
+  .phase:first-child{margin-top:0}
+  .grid{display:grid;grid-template-columns:1fr 290px;gap:20px}
   @media(max-width:920px){.grid{grid-template-columns:1fr}}
-  .step{display:grid;grid-template-columns:44px 1fr;gap:16px;padding-bottom:8px}
+  .step{display:grid;grid-template-columns:36px 1fr;gap:13px;padding-bottom:6px}
   .rail{display:flex;flex-direction:column;align-items:center}
-  .node{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;border:2px solid var(--line2);background:var(--panel2);z-index:2}
-  .line{flex:1;width:2px;background:var(--line);margin:2px 0;min-height:18px}
+  .node{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid var(--line2);background:var(--panel2);z-index:2;flex-shrink:0}
+  .line{flex:1;width:2px;background:var(--line);margin:2px 0;min-height:12px}
   .step:last-child .line{display:none}
-  .step.done .node{border-color:var(--ok);background:rgba(74,222,128,.12);color:var(--ok)}
+  .step.hitl .node{border-color:var(--human);background:rgba(74,222,128,.12);color:var(--human)}
   .step.gate .node{border-color:var(--dang);background:rgba(248,113,113,.12);color:var(--dang)}
-  .step.active .node{border-color:var(--acc);background:rgba(34,211,238,.15);color:var(--acc);box-shadow:0 0 0 4px rgba(34,211,238,.1)}
-  .body{padding-bottom:18px}
-  .srow{display:flex;align-items:center;gap:9px;margin-bottom:4px;flex-wrap:wrap}
-  .srow h4{font-size:14.5px;font-weight:600}
-  .who{font-size:10.5px;padding:2px 8px;border-radius:5px;font-weight:600}
-  .w-h{background:rgba(74,222,128,.15);color:var(--human)}
-  .w-a{background:rgba(34,211,238,.15);color:var(--ai)}
-  .w-r{background:rgba(167,139,250,.15);color:var(--robot)}
-  .stat{margin-left:auto;font-size:11px;color:var(--dim)}.stat.ok{color:var(--ok)}
-  .desc{font-size:12.5px;color:var(--dim);line-height:1.55}
+  .body{padding-bottom:14px}
+  .srow{display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap}
+  .srow h4{font-size:13.5px;font-weight:600}
+  .badge{font-size:9.5px;padding:2px 7px;border-radius:5px;font-weight:600}
+  .b-h{background:rgba(74,222,128,.15);color:var(--human)}
+  .b-a{background:rgba(34,211,238,.15);color:var(--ai)}
+  .b-r{background:rgba(167,139,250,.15);color:var(--robot)}
+  .b-edge{background:rgba(245,158,11,.15);color:var(--edge)}
+  .b-cloud{background:rgba(56,189,248,.15);color:var(--cloud)}
+  .b-j{background:rgba(34,211,238,.1);color:var(--acc);border:1px solid rgba(34,211,238,.25)}
+  .desc{font-size:12px;color:var(--dim);line-height:1.5}
   .desc code{background:#0b1119;color:var(--acc);padding:1px 5px;border-radius:4px;font-size:11px}
-  .gatebox{margin-top:9px;border-radius:9px;padding:11px 13px;font-size:12px}
+  .gatebox{margin-top:7px;border-radius:8px;padding:9px 11px;font-size:11.5px}
   .gatebox.block{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.28)}
   .gatebox.pass{background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.25)}
   .gatebox b{font-size:11px}.gatebox.block b{color:var(--dang)}.gatebox.pass b{color:var(--ok)}
-  .gatebox p{margin-top:4px;color:var(--dim);line-height:1.5}
-  .gatebox code{background:#0b1119;padding:1px 5px;border-radius:4px;font-size:10.5px;color:var(--warn)}
+  .gatebox p{margin-top:3px;color:var(--dim);line-height:1.45}
+  .branch{display:flex;gap:8px;margin-top:7px}
+  .br{flex:1;border-radius:8px;padding:8px 10px;font-size:11px;border:1px solid var(--line)}
+  .br.robot{background:rgba(167,139,250,.06);border-color:rgba(167,139,250,.25)}
+  .br.direct{background:rgba(34,211,238,.05);border-color:rgba(34,211,238,.2)}
+  .br b{font-size:11px}.br.robot b{color:var(--robot)}.br.direct b{color:var(--acc)}
+  .br p{color:var(--dim);margin-top:2px;line-height:1.4}
   .side .card{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:15px;margin-bottom:14px}
-  .side h3{font-size:11px;letter-spacing:.5px;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:12px}
-  .cst{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #1a212b}
-  .cst:last-child{border:none}.cst span{color:var(--dim)}.cst b{color:var(--acc)}
+  .side h3{font-size:11px;letter-spacing:.5px;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:11px}
   .jbox{font-size:12px;line-height:1.7}.jbox .row{display:flex;justify-content:space-between;padding:3px 0}
-  .jbox .row span{color:var(--dim)}.jbox .row b{color:var(--txt)}
-  .jbox .hl{color:var(--warn)}
-  .meta{display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--dim2)}
+  .jbox .row span{color:var(--dim)}.jbox .row b{color:var(--txt)}.jbox .hl{color:var(--warn)}
+  .layer{display:flex;gap:9px;align-items:flex-start;font-size:11.5px;padding:7px 0;border-bottom:1px solid #1a212b}
+  .layer:last-child{border:none}
+  .layer .ic{width:22px;flex-shrink:0;text-align:center}
+  .layer b{display:block;font-size:11.5px}.layer span{color:var(--dim);font-size:11px}
+  .exc{border-left:2px solid var(--warn);padding:6px 0 6px 10px;margin-bottom:9px;font-size:11px}
+  .exc:last-child{margin-bottom:0}
+  .exc h5{font-size:12px;font-weight:600;margin-bottom:2px}.exc p{color:var(--dim);line-height:1.4}
+  .exc .ret{color:var(--warn);font-weight:700}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--dim2)}
   .meta b{color:var(--dim)}.meta .live{color:var(--ok)}.meta .live::before{content:'●';margin-right:4px;font-size:8px;vertical-align:middle}
-  .loading{padding:60px;text-align:center;color:var(--dim2)}
+  .loading{padding:40px;text-align:center;color:var(--dim2)}
   .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--dim2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
 </style></head><body>
 <div class="device">
   <div class="top">
-    <div class="logo"><span class="dot"></span>MRO Copilot <small>실행 오케스트레이션 · 실시간</small></div>
-    <div class="wo"><span id="woLabel">WO 로딩…</span><span id="conn" class="conn off">연결 확인 중…</span></div>
+    <div class="logo"><span class="dot"></span>MRO Copilot <small>실행 오케스트레이션 · 12단계</small></div>
+    <div class="wo"><span id="woLabel">사각지대 외관검사</span><span id="conn" class="conn off">연결 확인 중…</span></div>
   </div>
   <div class="nav">
     <a href="/">① 정비사 단말</a>
@@ -75,88 +89,97 @@
     <a href="/robot.html">③ 로봇 검사</a>
   </div>
   <div class="legend">
-    <div class="a"><i style="background:var(--human)"></i>정비사</div>
-    <div class="a"><i style="background:var(--ai)"></i>AI · 오케스트레이터</div>
+    <div class="a"><i style="background:var(--human)"></i>정비사(HITL)</div>
+    <div class="a"><i style="background:var(--ai)"></i>AI·오케스트레이터</div>
     <div class="a"><i style="background:var(--robot)"></i>협동로봇</div>
-    <div class="prog" id="prog"></div>
+    <div class="a"><i style="background:var(--edge)"></i>Edge</div>
+    <div class="a"><i style="background:var(--cloud)"></i>Cloud</div>
+    <div class="prog">판단 <b>⓪~⑤</b> · HITL 4지점</div>
   </div>
   <div class="content">
     <div class="grid">
-      <div id="flow"><div class="loading"><span class="spin"></span> 지식그래프에서 작업지시 조회 중…</div></div>
+      <div id="flow"><div class="loading"><span class="spin"></span> 로딩…</div></div>
       <div class="side" id="side"></div>
     </div>
     <div class="meta" id="meta"></div>
   </div>
 </div>
 <script>
-const RISK_ICON={상:'⚠',중:'●',하:'○'};
+// 12단계 확정 시나리오 (대표시나리오_12단계_확정본 v1)
+const STEPS=[
+ {ph:'A. 작업 시작', n:1, name:'작업지시 하달·접수', who:'a', loc:'cloud', desc:'중앙에서 지정된 Work Order 접수 → 상태 ‘수락 대기’ 전이. (정비사 배정은 중앙 관리자 영역)'},
+ {n:2, name:'작업 수락', who:'h', hitl:1, desc:'정비사가 [작업 수락] → Work Order ‘진행’ 전이.'},
+ {n:3, name:'절차·주의사항 제시 + 상시 질의', who:'a', loc:'cloud', desc:'Knowledge Agent가 작업지시 기반 절차·주의사항 검색. <b>음성 지원 정비 챗봇</b>이 이 시점부터 작업 전 구간 상시 활성 (집=서버, 접점=정비사 디바이스).'},
+ {n:4, name:'작업 분해·주체 후보 제시', who:'a', loc:'cloud', j:'⓪', jdesc:'작업 해석·분해', desc:'Work Order → Task Step 분해, 각 단계에 수행주체 후보(정비사/AI/로봇) 부여.', gate:['pass','판단 ⓪ 작업 해석·분해','단계가 하드코딩이 아니라 <b>절차 지식에서 생성</b>된다 — 작업 종류가 바뀌면 단계 구성이 바뀐다.']},
+ {ph:'B. 촬영 실행', n:5, name:'촬영 명령 (실행 게이트 + 지식 파라미터)', who:'h', hitl:1, loc:'split', j:'①', jdesc:'실행 게이트', desc:'정비사가 부위 촬영을 로봇에 지시하거나 직접 촬영 선택.', gate:['block','판단 ① 실행 게이트 · 계획 Cloud / 검증 Edge','온톨로지에서 부위의 <b>촬영 스펙(접근방향·요구각도·조명)</b>을 읽어 Skill Request 파라미터로 변환. — 사람은 부위만 말하고, 어떻게 찍는지는 지식이 계획한다.'], branch:1},
+ {n:6, name:'촬영 수행 (병행 작업)', who:'r', loc:'edge', desc:'(로봇) 이동·자세·조명·촬영 → Execution Event 보고. (직접) 정비사가 플랫폼 카메라·스마트폰 촬영. <b>정비사는 로봇을 기다리지 않는다</b> — 다른 Task Step 병행.'},
+ {n:7, name:'품질 확인·재촬영 / 로봇 예외', who:'a', loc:'edge', j:'②③', jdesc:'품질검증·수동전환', desc:'촬영물은 출처 무관 Evidence로 등록·품질 검사.', gate:['block','판단 ② 품질검증(Edge 루프) · 판단 ③ 수동전환','미달 사유를 <b>파라미터에 보정</b>해 자동 재촬영(단순 retry 아님). 상한 초과·로봇 오류 → 안전 정지 후 직접 촬영 전환. <b>로봇이 죽어도 작업은 죽지 않는다.</b>']},
+ {ph:'C. 판정·전이', n:8, name:'분석 결과·유사 사례 제시', who:'a', loc:'cloud', desc:'비전 AI가 이상 <b>후보</b> 마킹(판정 아님). 그 사진이 임베딩 검색 입력이 되어 유사 사례 제시.'},
+ {n:9, name:'정비사 판정', who:'h', hitl:1, desc:'정비사가 정상/이상/재검사 판정 → Human Decision 기록. (비전 AI는 후보까지만 — HITL)'},
+ {n:10, name:'판정에 따른 전이', who:'a', loc:'cloud', j:'④', jdesc:'전이', desc:'', gate:['pass','판단 ④ 전이','정상→다음 단계 / 이상→조치 기록 단계 생성 / 재검사→5단계(촬영) 복귀.']},
+ {ph:'D. 기록·환류', n:11, name:'Work Card 초안·승인', who:'h', hitl:1, loc:'cloud', j:'⑤', jdesc:'종료', desc:'사진·시간·로봇로그·판정(촬영출처 포함) 자동 조립.', gate:['block','판단 ⑤ 완결성 게이트','필수 항목(요구컷 Evidence·품질·판정 기록) 검증 통과분만 승인 요청. <span style="color:var(--dim2)">⚙️ 설계 반영 · PoC는 승인 단독 종료</span>']},
+ {n:12, name:'지식 환류', who:'a', loc:'cloud', desc:'승인된 Work Record가 사례 라이브러리에 등록 — 사진=임베딩, 판정·조치=메타데이터. 다음 작업 8단계 검색 대상이 하나 늘어난다.'}
+];
+const WHO={h:['b-h','정비사'],a:['b-a','AI'],r:['b-r','로봇']};
+const LOC={cloud:['b-cloud','☁ Cloud'],edge:['b-edge','⚡ Edge'],split:['b-cloud','☁ 계획 / ⚡ 검증']};
+
 async function checkConn(){
   const c=document.getElementById('conn');
   try{const r=await fetch('/api/parts');const j=await r.json();
     if(Array.isArray(j)){c.className='conn on';c.textContent='● 지식그래프 연결됨';}
   }catch(e){c.className='conn off';c.textContent='✗ 서버 미연결';}
 }
-function whoOf(name){
-  if(name.includes('로봇')||name.includes('촬영'))return['w-r','로봇'];
-  if(name.includes('판정')||name.includes('승인')||name.includes('안전')||name.includes('기록'))return['w-h','정비사'];
-  return['w-a','AI'];
-}
-async function load(){
-  await checkConn();
-  const r=await fetch('/api/workflow');const j=await r.json();
-  if(j.error||!j.wo){document.getElementById('flow').innerHTML='<div class="loading">작업지시 데이터를 찾지 못했습니다. Phase 2 적재를 확인하세요.</div>';return;}
-  const w=j.wo, jd=j.judgment;
-  document.getElementById('woLabel').innerHTML='WO <b>'+w.wo+'</b> · '+w.aircraft;
-  const steps=(w.steps||[]).sort((a,b)=>a.seq-b.seq);
-  const doneN=steps.filter(s=>s.status==='DONE').length;
-  document.getElementById('prog').innerHTML='진행 <b>'+doneN+'</b> / '+steps.length+' 단계 · 게이트 통과';
-
-  const GATE={3:['block','🔒 C-07 승인 게이트','위험등급 상 단계는 정비사 승인 없이 전이 불가. 승인 후 게이트 개방.'],
-    5:['block','🔒 C-12 판정 게이트 · 불변 원칙','AI가 <code>결함</code>을 직접 확정하는 경로가 스키마에 없음. 결함후보 → 정비사 판정 → 결함 확정만 가능.'],
-    6:['pass','C-13 · C-14 등록 게이트','필수증빙 전건 연결(C-14) + 정비사 승인(C-13) 후에만 검증사례 생성 → 다음 작업 재사용.']};
-
+function renderFlow(){
   let html='';
-  steps.forEach((s,i)=>{
-    const [wcls,wlbl]=whoOf(s.name);
-    const isGate=GATE[s.seq];
-    const cls=s.status==='DONE'?'done':(i===doneN?'active':(isGate&&isGate[0]==='block'?'gate':''));
-    const icon=s.status==='DONE'?'✓':s.seq;
-    const statTxt=s.status==='DONE'?(s.approval?'승인 완료':'완료'):(i===doneN?'진행 중':'대기');
-    const riskTag=s.risk?('<code>'+s.risk+'</code>'):'';
-    let gate='';
-    if(isGate)gate='<div class="gatebox '+isGate[0]+'"><b>'+isGate[1]+'</b><p>'+isGate[2]+'</p></div>';
+  STEPS.forEach(s=>{
+    if(s.ph) html+='<div class="phase">'+s.ph+'</div>';
+    const cls=s.hitl?'hitl':(s.gate&&s.gate[0]==='block'?'gate':'');
+    const icon=s.hitl?'✋':s.n;
+    const who=WHO[s.who];
+    const whoBadge='<span class="badge '+who[0]+'">'+who[1]+'</span>';
+    let locBadge='';
+    if(s.loc){const l=LOC[s.loc];locBadge='<span class="badge '+l[0]+'">'+l[1]+'</span>';}
+    const jBadge=s.j?'<span class="badge b-j">판단 '+s.j+'</span>':'';
+    let gate=s.gate?'<div class="gatebox '+s.gate[0]+'"><b>🔒 '+s.gate[1]+'</b><p>'+s.gate[2]+'</p></div>':'';
+    let branch='';
+    if(s.branch)branch='<div class="branch">'+
+      '<div class="br robot"><b>🤖 로봇 촬영</b><p>실행 게이트 통과 시 Skill Request 발행</p></div>'+
+      '<div class="br direct"><b>📷 직접 촬영</b><p>플랫폼 카메라·스마트폰 · 동일 품질검사</p></div></div>';
     html+='<div class="step '+cls+'"><div class="rail"><div class="node">'+icon+'</div><div class="line"></div></div>'+
-      '<div class="body"><div class="srow"><h4>'+s.seq+' · '+s.name+'</h4>'+
-      '<span class="who '+wcls+'">'+wlbl+'</span><span class="stat '+(s.status==='DONE'?'ok':'')+'">'+statTxt+'</span></div>'+
-      '<div class="desc">위험등급 '+riskTag+(s.approval?' · 승인 필요':'')+'</div>'+gate+'</div></div>';
+      '<div class="body"><div class="srow"><h4>'+s.n+' · '+s.name+'</h4>'+whoBadge+locBadge+jBadge+'</div>'+
+      (s.desc?'<div class="desc">'+s.desc+'</div>':'')+gate+branch+'</div></div>';
   });
   document.getElementById('flow').innerHTML=html;
-
-  // side
-  let jhtml='';
-  if(jd){jhtml='<div class="card"><h3>정비사 판정 결과 (실데이터)</h3><div class="jbox">'+
+}
+async function loadSide(){
+  let jd=null;
+  try{const r=await fetch('/api/workflow');const j=await r.json();jd=j.judgment;}catch(e){}
+  let h='';
+  if(jd){h+='<div class="card"><h3>정비사 판정 — 실데이터 (Neo4j)</h3><div class="jbox">'+
     '<div class="row"><span>결함후보</span><b>'+jd.cand+'</b></div>'+
     '<div class="row"><span>AI 신뢰도</span><b>'+(jd.conf||'-')+'</b></div>'+
     '<div class="row"><span>정비사 판정</span><b class="hl">'+jd.verdict+'</b></div>'+
     '<div class="row"><span>판정자</span><b>'+jd.by+'</b></div>'+
-    '<div class="row"><span>확정 결함</span><b>'+jd.defect+'</b></div>'+
-    '<div class="row"><span>조치</span><b>'+(jd.action||'-')+'</b></div></div>'+
-    '<p style="font-size:11px;color:var(--dim);margin-top:10px;line-height:1.5">AI 후보가 정비사 판정을 거쳐야만 결함으로 확정됨 <span style="color:var(--dim2)">(C-12 실증)</span></p></div>';}
-  jhtml+='<div class="card"><h3>실행 제약 (런타임 강제)</h3>'+
-    '<div class="cst"><span>선행단계 미완료 차단</span><b>C-06</b></div>'+
-    '<div class="cst"><span>승인 전 위험단계 차단</span><b>C-07</b></div>'+
-    '<div class="cst"><span>AI 결함 직접확정 차단</span><b>C-12</b></div>'+
-    '<div class="cst"><span>미승인 지식등록 차단</span><b>C-13</b></div>'+
-    '<div class="cst"><span>증빙 누락 완료 차단</span><b>C-14</b></div></div>'+
-    '<div class="card" style="background:linear-gradient(135deg,#132029,#0f1a24);border-color:rgba(34,211,238,.2)">'+
-    '<h3 style="color:var(--acc)">핵심</h3><p style="font-size:12.5px;color:var(--txt);line-height:1.6">안내가 아니라 <b>차단</b>이다.<br>잘못된 다음 단계로 가는 <b style="color:var(--acc)">경로 자체가 존재하지 않는다.</b></p></div>';
-  document.getElementById('side').innerHTML=jhtml;
-
-  document.getElementById('meta').innerHTML='<span class="live">오케스트레이터 실행 중</span>'+
-    '<span><b>대상</b> '+(w.partName||'-')+' · 계통 '+(w.sysCode||'-')+'</span>'+
-    '<span><b>위치</b> '+(w.loc||'-')+'</span>'+
-    '<span><b>목적</b> '+(w.purpose||'-')+'</span>';
+    '<div class="row"><span>확정 결함</span><b>'+jd.defect+'</b></div></div>'+
+    '<p style="font-size:11px;color:var(--dim);margin-top:9px;line-height:1.5">AI 후보가 정비사 판정을 거쳐야만 결함으로 확정됨 <span style="color:var(--dim2)">(9→10단계 실증)</span></p></div>';}
+  h+='<div class="card"><h3>3층 판단 배치</h3>'+
+    '<div class="layer"><span class="ic">🤖</span><div><b style="color:var(--robot)">로봇 제어기(STEP)</b><span>반사신경 — 충돌 정지는 로봇 안에서 끝</span></div></div>'+
+    '<div class="layer"><span class="ic">⚡</span><div><b style="color:var(--edge)">격납고 Edge</b><span>검증 — 0.1초·안전·원본 데이터. 판단 ①검증·②·③정지</span></div></div>'+
+    '<div class="layer"><span class="ic">☁</span><div><b style="color:var(--cloud)">KT Cloud</b><span>판단력 — 지식·작업 전체. 판단 ⓪①계획·④⑤</span></div></div>'+
+    '<p style="font-size:11px;color:var(--txt);margin-top:9px;line-height:1.5"><b>Edge는 반사신경, Cloud는 판단력.</b> 통신이 끊겨도 Edge는 스스로 안전하게 멈춘다.</p></div>';
+  h+='<div class="card"><h3>⚠ 예외 복구 (필수 3종)</h3>'+
+    '<div class="exc"><h5>촬영 품질 미달</h5><p><span class="ret">↺</span> 파라미터 보정 재촬영 (7단계)</p></div>'+
+    '<div class="exc"><h5>정비사 반려·재검사</h5><p><span class="ret">↺</span> 촬영 단계(5) 복귀 (10·11단계)</p></div>'+
+    '<div class="exc"><h5>로봇 오류·타임아웃</h5><p><span class="ret">↺</span> 안전 정지 후 직접 촬영 전환 (7단계)</p></div></div>';
+  document.getElementById('side').innerHTML=h;
 }
-load();
+async function init(){
+  await checkConn(); renderFlow(); await loadSide();
+  document.getElementById('meta').innerHTML='<span class="live">오케스트레이터 · 12단계 시나리오</span>'+
+    '<span><b>로봇</b> Indy7 + Moby (뉴로메카)</span>'+
+    '<span><b>판단</b> ⓪~⑤ · Edge/Cloud 배치</span>'+
+    '<span><b>기준</b> 대표시나리오 12단계 확정본 v1</span>';
+}
+init();
 </script>
 </body></html>

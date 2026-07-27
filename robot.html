@@ -63,16 +63,26 @@
   .status-bar{display:flex;gap:10px;align-items:center;padding:11px 20px;background:var(--panel2);border-top:1px solid var(--line);font-size:11px;color:var(--dim2)}
   .status-bar .live{color:var(--ok)}.status-bar .live::before{content:'●';margin-right:4px;font-size:8px}
   .status-bar b{color:var(--dim)}
+  .specbar{display:flex;gap:16px;flex-wrap:wrap;padding:9px 20px;background:#0b1119;border-bottom:1px solid var(--line);font-size:11px;color:var(--dim)}
+  .specbar b{color:var(--robot);font-weight:600}
+  .specbar .src{margin-left:auto;color:var(--dim2);font-size:10px}
 </style></head><body>
 <div class="device">
   <div class="top">
-    <div class="logo"><span class="dot"></span>MRO Copilot <small>이동형 검사 로봇 · ROBOT-01</small></div>
-    <div class="wo"><span>배터리 <b>82%</b></span><span id="conn" class="conn off">연결 확인 중…</span></div>
+    <div class="logo"><span class="dot"></span>MRO Copilot <small>이동형 검사 로봇 · Indy7 + Moby</small></div>
+    <div class="wo"><span>배터리 <b>82%</b></span><span>상태 <b style="color:var(--ok)">SCANNING</b></span><span id="conn" class="conn off">연결 확인 중…</span></div>
   </div>
   <div class="nav">
     <a href="/">① 정비사 단말</a>
     <a href="/orchestration.html">② 오케스트레이션</a>
     <a href="/robot.html" class="on">③ 로봇 검사</a>
+  </div>
+  <div class="specbar">
+    <span><b>Indy7 V3</b> 6축·가반 7kg·반복정밀도 100μm</span>
+    <span><b>Moby V3.2</b> 적재 40kg·H600·전방향 조향</span>
+    <span><b>IndyEye</b> 작동거리 5~70cm·자동 캘리브레이션</span>
+    <span><b>STEP</b> 실시간 제어·전신 동기</span>
+    <span class="src">뉴로메카 공식 카탈로그 V20241016</span>
   </div>
   <div class="grid">
     <div class="cam">
@@ -92,8 +102,9 @@
   </div>
   <div class="status-bar">
     <span class="live">로봇 실행 로그 기록 중</span>
-    <span style="color:var(--dim2)"><b>공구 전달·Tool Control</b> — 검증 이후 확장 비전 (PoC 범위 밖)</span>
-    <span><b>원격</b> 영상 공유 가능</span>
+    <span><b>Skill Request</b> IndyDCP3(gRPC)·Modbus·OPC-UA — 표준 인터페이스 연동 가능</span>
+    <span><b>3층</b> 로봇 반사신경 / Edge 검증 / Cloud 판단</span>
+    <span style="color:var(--dim2)">공구 전달·Tool Control — 검증 이후 확장 비전 (PoC 밖)</span>
     <span id="srcMeta"></span>
   </div>
 </div>
@@ -125,12 +136,12 @@ async function load(){
   const distTxt=defs.map(d=>(KOR[d.name]||d.name)+' '+d.weight+'건').join(' · ');
 
   document.getElementById('side').innerHTML=
-    '<div class="card"><h3>🎙️ 음성 지원 챗봇</h3><div class="chat">'+
+    '<div class="card"><h3>🎙️ 음성 지원 정비 챗봇 <span style="margin-left:auto;font-weight:400;text-transform:none;color:var(--dim2)">집=서버 · 접점=정비사 디바이스</span></h3><div class="chat">'+
       '<div class="msg tech"><div class="av">🧑‍🔧</div><div class="bub">"여기 '+(sc.str||'STR29')+' 부근 촬영해줘"</div></div>'+
-      '<div class="msg ai"><div class="av">🤖</div><div class="bub">검사위치 <code>'+(loc||'FR73 / STR29L')+'</code> 이동 완료. '+(sc.blind?'사각지대라 ':'')+'조명 켜고 자세 조정 후 촬영합니다.</div></div>'+
+      '<div class="msg ai"><div class="av">🧠</div><div class="bub">검사위치 <code>'+(loc||'FR73 / STR29L')+'</code>로 로봇에 Skill Request 발행. '+(sc.blind?'사각지대라 ':'')+'조명·자세 파라미터를 지식에서 계획했습니다.</div></div>'+
       '<div class="msg tech"><div class="av">🧑‍🔧</div><div class="bub">"이 부품 전에 문제 있었어?"</div></div>'+
-      '<div class="msg ai"><div class="av">🤖</div><div class="bub">동체 외판(SKIN)은 <code>'+distTxt+'</code> 반복 부위입니다. 지식그래프 조회 결과입니다.</div></div>'+
-    '</div></div>'+
+      '<div class="msg ai"><div class="av">🧠</div><div class="bub">동체 외판(SKIN)은 <code>'+distTxt+'</code> 반복 부위입니다. 지식그래프 조회 결과입니다.</div></div>'+
+    '</div><p style="font-size:10.5px;color:var(--dim2);margin-top:8px;line-height:1.45">🧠 두뇌는 KT 클라우드 · 로봇은 <b>대화 접점이 아니라 촬영 엔드포인트</b></p></div>'+
     '<div class="card"><h3>🔍 이상 후보 탐지 <span style="margin-left:auto;font-weight:400;text-transform:none;color:var(--dim2)">AI 비전</span></h3>'+
       '<div class="cand"><div class="box">🟠</div><div class="info"><div class="t">CORROSION 부식 후보</div>'+
       '<div class="s">'+(loc||'STR29L · FR73')+' · bbox 표시됨</div></div>'+
@@ -140,6 +151,7 @@ async function load(){
     '<div class="card"><h3>📋 Work Card 자동 기록</h3>'+
       '<div class="wc-row"><span>검사 위치</span><b>'+(loc||'FR73 / STR29L')+'</b></div>'+
       '<div class="wc-row"><span>촬영 증빙</span><b>EV-01.jpg <span class="auto">자동 연결</span></b></div>'+
+      '<div class="wc-row"><span>촬영 출처</span><b>🤖 로봇 <span class="auto">기록됨</span></b></div>'+
       '<div class="wc-row"><span>품질점수</span><b>'+quality+' <span class="auto">기준 통과</span></b></div>'+
       '<div class="wc-row"><span>후보 결과</span><b>부식 '+conf+'</b></div>'+
       '<div class="wc-row"><span>정비사 판정</span><b style="color:var(--warn)">대기 중</b></div></div>';
