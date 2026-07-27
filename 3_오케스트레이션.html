@@ -1,0 +1,172 @@
+<title>사람–AI–로봇 오케스트레이션 — 프로토타입</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
+  @media(max-width:1050px){.grid{grid-template-columns:1fr}}
+  .who{display:flex;gap:16px;margin-bottom:12px;font-size:11px;color:var(--dim)}
+  .who i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+  .step{display:grid;grid-template-columns:26px 1fr;gap:10px;position:relative;padding-bottom:12px}
+  .step::before{content:'';position:absolute;left:12px;top:26px;bottom:0;width:1px;background:var(--line)}
+  .step:last-child::before{display:none}
+  .num{width:25px;height:25px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;border:1px solid var(--line);background:var(--panel);z-index:1}
+  .n-h{border-color:var(--human);color:var(--human)}
+  .n-a{border-color:var(--acc2);color:var(--acc2)}
+  .n-r{border-color:var(--robot);color:var(--robot)}
+  .body{padding-top:3px}
+  .body h3{margin:0;font-size:13px;font-weight:600}
+  .body p{margin:2px 0 0;font-size:11px;color:var(--dim)}
+  .actor{font-size:10px;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:600}
+  .a-h{background:rgba(74,222,128,.15);color:var(--human)}
+  .a-a{background:rgba(56,189,248,.15);color:var(--acc2)}
+  .a-r{background:rgba(129,140,248,.15);color:var(--robot)}
+  .gate{margin-top:6px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);
+    border-radius:6px;padding:7px 9px;font-size:11px}
+  .gate b{color:var(--dang);font-size:10px;letter-spacing:.5px}
+  .gate p{margin:3px 0 0;color:var(--dim);font-size:11px}
+  .gate code{background:#0d1117;color:var(--txt);padding:1px 4px;border-radius:3px;font-size:10px}
+  .gate.ok{background:rgba(74,222,128,.07);border-color:rgba(74,222,128,.3)}
+  .gate.ok b{color:var(--ok)}
+  .exc{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.28);
+    border-radius:7px;padding:10px;margin-bottom:9px}
+  .exc b{color:var(--warn);font-size:11px}
+  .exc p{margin:4px 0 0;font-size:11px;color:var(--dim)}
+  .arrow{color:var(--warn);font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  td{padding:4px 0;border-bottom:1px solid #1a212b;color:var(--dim)}
+  td.r{text-align:right;color:var(--txt);font-variant-numeric:tabular-nums}
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>사람–AI–로봇 <span>오케스트레이션</span> — 사각지대 외관검사</h1>
+    <div class="sub">지식그래프의 제약이 단계 전이를 통제한다 · 안내가 아니라 차단 <span class="tag">Phase 2 설계</span></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>10</b><i>작업 단계</i></div>
+    <div class="stat"><b>15</b><i>제약 규칙</i></div>
+    <div class="stat"><b>3</b><i>예외 복구 경로</i></div>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <h2>실행 흐름 — 수행주체 배정과 게이트</h2>
+    <div class="who">
+      <span><i style="background:var(--human)"></i>정비사</span>
+      <span><i style="background:var(--acc2)"></i>AI / 오케스트레이터</span>
+      <span><i style="background:var(--robot)"></i>협동로봇</span>
+    </div>
+
+    <div class="step"><div class="num n-a">1</div><div class="body">
+      <h3>정비 작업지시 입력<span class="actor a-a">AI</span></h3>
+      <p>작업지시 → 대상 항공기·부품 연결 <code style="color:var(--dim)">targets</code></p>
+    </div></div>
+
+    <div class="step"><div class="num n-a">2</div><div class="body">
+      <h3>절차·주의사항·유사 사례 검색<span class="actor a-a">AI</span></h3>
+      <p>온톨로지가 작업 맥락 제공 → RAG 검색 범위 축소 · CQ A1·A6·A8·B2</p>
+      <div class="gate ok"><b>C-04 출처 강제</b>
+        <p>모든 절차·주의사항은 근거 문서를 갖는다. 출처 없는 답변은 반환되지 않는다.</p></div>
+    </div></div>
+
+    <div class="step"><div class="num n-a">3</div><div class="body">
+      <h3>단계 분해 · 수행주체 배정<span class="actor a-a">AI</span></h3>
+      <p>정비사 / AI / 로봇 <code style="color:var(--dim)">executable_by</code> · CQ E1</p>
+      <div class="gate"><b>C-11 배정 게이트</b>
+        <p>수행주체가 배정되지 않은 단계는 <b>실행 불가</b></p></div>
+    </div></div>
+
+    <div class="step"><div class="num n-r">4</div><div class="body">
+      <h3>로봇 상태 확인 · 촬영 요청<span class="actor a-r">로봇</span></h3>
+      <p>Skill Request 생성 · CQ E2·E3</p>
+    </div></div>
+
+    <div class="step"><div class="num n-r">5</div><div class="body">
+      <h3>검사 위치 이동 · 조명·촬영<span class="actor a-r">로봇</span></h3>
+      <p>검사위치 = <b style="color:var(--loc)">동체스테이션·스트링거 좌표</b> (SDR 표준 좌표계) · CQ E4</p>
+    </div></div>
+
+    <div class="step"><div class="num n-a">6</div><div class="body">
+      <h3>엣지 촬영 품질 판정<span class="actor a-a">AI</span></h3>
+      <p>품질 미달 시 자동 재촬영 · CQ F2·F3</p>
+      <div class="gate"><b>C-08 품질 게이트</b>
+        <p><code>품질점수 &lt; 기준 ⟹ 재촬영 이벤트 필수</code></p></div>
+    </div></div>
+
+    <div class="step"><div class="num n-h">7</div><div class="body">
+      <h3>정비사 판정 — 정상 · 이상 · 재검사<span class="actor a-h">정비사</span></h3>
+      <p>AI는 <b style="color:var(--warn)">결함후보</b>까지만 생성 · CQ F1·F4</p>
+      <div class="gate"><b>C-12 판정 게이트 · 불변 원칙</b>
+        <p>AI가 <code>결함</code> 노드를 만들 <b>경로가 스키마에 없다</b>.
+        결함후보 → 정비사판정 → 결함 확정만 가능.</p></div>
+    </div></div>
+
+    <div class="step"><div class="num n-a">8</div><div class="body">
+      <h3>판정 결과에 따른 다음 작업 배정<span class="actor a-a">AI</span></h3>
+      <div class="gate"><b>C-07 승인 게이트</b>
+        <p><code>위험등급='상' ∧ 승인필요=Y ⟹ 정비사 판정 없이 전이 불가</code><br>
+        프롬프트 지시가 아니라 <b>전이 경로 부재</b>로 강제된다.</p></div>
+    </div></div>
+
+    <div class="step"><div class="num n-a">9</div><div class="body">
+      <h3>Work Card 자동 연결<span class="actor a-a">AI</span></h3>
+      <p>사진·작업시간·로봇로그·판정 → 기록 · CQ G1·G3</p>
+      <div class="gate"><b>C-14 증빙 완결</b>
+        <p>필수증빙항목 <b>전건</b>에 증빙실물이 연결되어야 완료 — 증빙 자동연결률 95% KPI 원천</p></div>
+    </div></div>
+
+    <div class="step"><div class="num n-h">10</div><div class="body">
+      <h3>정비사 승인 → 검증사례 등록<span class="actor a-h">정비사</span></h3>
+      <p>승인된 것만 지식이 된다 · CQ G4·G5</p>
+      <div class="gate"><b>C-13 등록 게이트</b>
+        <p><code>승인 없이 검증사례 생성 불가</code> — 클래스 멤버십 자체가 승인 게이트.
+        다음 유사 작업에서 재검색된다.</p></div>
+    </div></div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>반드시 보여줄 예외 3종</h2>
+      <div class="exc"><b>촬영 품질 미달</b>
+        <p>카메라 자세·조명 조정 후 재촬영<br>
+        <span class="arrow">↺</span> 5단계로 복귀 · <code style="color:var(--txt)">triggers</code></p></div>
+      <div class="exc"><b>정비사 반려</b>
+        <p>재촬영 또는 재검토 단계로 되돌림<br>
+        <span class="arrow">↺</span> C-10 · 지정 복귀 단계로만 전이</p></div>
+      <div class="exc"><b>로봇 오류 · 타임아웃</b>
+        <p>안전 정지 후 수동 작업 전환<br>
+        <span class="arrow">↺</span> C-09 · 수동전환 외 전이 금지</p></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>제약 15건 — 검증 시점별</h2>
+      <table>
+        <tr><td>구조 제약 (적재 시)</td><td class="r">5</td></tr>
+        <tr><td>전이 제약 (런타임)</td><td class="r">6</td></tr>
+        <tr><td>등록 제약 (환류)</td><td class="r">4</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--dim);margin:10px 0 0">
+        검증 시점이 곧 구현 위치다 — 스키마 / 오케스트레이터 / 환류 파이프라인.</p>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>왜 검색이 아니라 온톨로지인가</h2>
+      <table>
+        <tr><td>문서 검색으로 답 가능</td><td class="r">8</td></tr>
+        <tr><td>경계</td><td class="r">4</td></tr>
+        <tr><td style="color:var(--acc)">검색으로 답 불가</td><td class="r" style="color:var(--acc)">19</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--dim);margin:10px 0 0">
+        CQ 31개 중 19개는 문서에 답이 적혀 있지 않다. 관계·상태·제약에서 계산된다.
+        <b style="color:var(--txt)">항공정비에서 “대체로 지켜진다”는 지켜지지 않는다는 뜻이다.</b></p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div>온톨로지 설계 완료 — CQ 31 · 클래스 24 · 관계 28 · 제약 15 · 계층 계통 547 / 부품 141</div>
+  <div>KT AIVLE School 빅프로젝트 · 수도권 01반 01조</div>
+</footer>
+</div>

@@ -1,6 +1,6 @@
 # MRO Copilot — 항공정비 Physical AI 서비스
 
-온톨로지(Neo4j 지식그래프) 기반 정비사 지원 서비스. KT AIVLE School 빅프로젝트.
+온톨로지(Neo4j 지식그래프) 기반 정비사 지원 서비스. KT AIVLE School 빅프로젝트 (수도권 01반 01조).
 
 ## 서비스 3종
 - `/` — 정비사 지원 단말 (지식·유사사례 검색)
