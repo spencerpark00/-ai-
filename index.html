@@ -29,6 +29,8 @@
     background:linear-gradient(135deg,var(--acc),var(--acc2));color:#03151a;font-size:18px;
     display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(34,211,238,.35);transition:transform .15s}
   .mic:active{transform:scale(.92)}
+  .mic.rec{background:linear-gradient(135deg,var(--dang),#f97316);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,.5)}50%{box-shadow:0 0 0 8px rgba(248,113,113,0)}}
   .qinput{flex:1;background:#0b1119;border:1px solid var(--line2);border-radius:11px;
     padding:11px 15px;color:var(--txt);font-size:15px;font-family:inherit}
   .qinput::placeholder{color:var(--dim2)}
@@ -119,7 +121,7 @@
   </div>
   <div class="qbar">
     <div class="qrow">
-      <button class="mic" onclick="ask()" title="음성 질의">🎙️</button>
+      <button class="mic" id="mic" onclick="startVoice()" title="음성으로 질문">🎙️</button>
       <input class="qinput" id="q" placeholder="부품·결함을 질문하세요.  예) 동체 외판 부식 / 스트링거 / 좌석 레일"
              onkeydown="if(event.key==='Enter')ask()">
       <button class="go" onclick="ask()">검색</button>
@@ -148,6 +150,44 @@ const KOR = {DAMAGED:'손상',CORRODED:'부식',CRACKED:'균열',DENTED:'찍힘'
   'GROUND DAMAGE':'지상손상','MECHANIC ERROR':'작업오류','NO DISCREPANCY':'이상없음',
   SCRATCHED:'스크래치',BENT:'변형',DEBONDED:'접착불량','OUT OF LIMITS':'허용초과'};
 const COLOR = {DAMAGED:'var(--dmg)',CORRODED:'var(--corr)',CRACKED:'var(--crack)'};
+
+// ── 음성 인식 (브라우저 내장 Web Speech API) ──
+let recog=null, recActive=false;
+function startVoice(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mic = document.getElementById('mic');
+  const echo = document.getElementById('echo');
+  if(!SR){
+    echo.className='echo show';
+    echo.innerHTML='⚠ 이 브라우저는 음성 인식을 지원하지 않습니다. Chrome/Edge에서 사용하거나 텍스트로 입력하세요.';
+    return;
+  }
+  if(recActive){ recog && recog.stop(); return; }  // 누르면 토글로 중지
+  recog = new SR();
+  recog.lang='ko-KR';
+  recog.interimResults=true;   // 말하는 중간 결과도 실시간 표시
+  recog.maxAlternatives=1;
+  recActive=true; mic.classList.add('rec');
+  echo.className='echo show'; echo.innerHTML='🎙️ 듣고 있어요… 말씀하세요';
+  recog.onresult=function(ev){
+    let txt='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){ txt+=ev.results[i][0].transcript; }
+    document.getElementById('q').value=txt;
+    echo.innerHTML='🎙️ "'+txt+'"';
+    if(ev.results[ev.results.length-1].isFinal){
+      recog.stop();
+      setTimeout(ask, 200);   // 말 끝나면 자동 검색
+    }
+  };
+  recog.onerror=function(e){
+    echo.innerHTML = e.error==='not-allowed'
+      ? '⚠ 마이크 권한이 필요합니다. 주소창 왼쪽 자물쇠 → 마이크 허용 후 다시 시도하세요.'
+      : '⚠ 음성 인식 오류: '+e.error+' (텍스트로 입력해도 됩니다)';
+    recActive=false; mic.classList.remove('rec');
+  };
+  recog.onend=function(){ recActive=false; mic.classList.remove('rec'); };
+  recog.start();
+}
 
 async function checkConn(){
   const c = document.getElementById('conn');
