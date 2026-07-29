@@ -114,7 +114,11 @@
   .sheetbox .sh{position:sticky;top:0;display:flex;align-items:center;gap:8px;padding:14px 16px;background:var(--panel);border-bottom:1px solid var(--line);font-weight:700}
   .sheetbox .sh .x{margin-left:auto;cursor:pointer;color:var(--dim);font-size:19px}
   .sheetbody{padding:14px 16px}
-  .qbub{background:var(--acc);color:#04222b;padding:8px 13px;border-radius:12px;font-size:13px;font-weight:600;margin-bottom:12px;display:inline-block}
+  .qbub{background:var(--acc);color:#04222b;padding:8px 13px;border-radius:12px 12px 4px 12px;font-size:13px;font-weight:600;margin:0 0 10px auto;display:block;width:fit-content;max-width:80%}
+  .botmsg{background:var(--panel2);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:11px 14px;font-size:13.5px;line-height:1.65;margin-bottom:14px;max-width:88%;white-space:normal}
+  .rchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .rchip{font-size:11.5px;background:#0b1119;border:1px solid var(--line2);border-radius:16px;padding:5px 12px;color:var(--acc);cursor:pointer}
+  .rchip:hover{background:rgba(34,211,238,.1);border-color:var(--acc)}
   .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px}
   .card h3{font-size:11px;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:10px;display:flex;gap:6px}
   .defect{margin-bottom:8px}.defect .dl{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
@@ -320,35 +324,36 @@ function startVoice(){
   recog.onend=function(){recActive=false;mic.classList.remove('rec');document.getElementById('ask').placeholder='검사 중 궁금한 걸 물어보세요';};
   recog.start();
 }
+let lastPart='SKIN';
 async function doAsk(){
   const inp=document.getElementById('ask');const term=inp.value.trim();if(!term)return;inp.value='';
   if(/찍어|촬영|스캔|카메라/.test(term)){openRobot();return;}
+  askServer(term);
+}
+async function askServer(term){
   const sheet=document.getElementById('sheet');sheet.classList.add('show');
-  document.getElementById('askQ').textContent='"'+term+'"';
+  document.getElementById('askQ').textContent='작업 도우미';
   const body=document.getElementById('sheetBody');
-  body.innerHTML='<div style="color:var(--dim2);font-size:12px;padding:16px;text-align:center"><span class="spin"></span> 찾는 중…</div>';
+  // 기존 대화 유지하며 질문 추가 (대화형)
+  const prev=body.getAttribute('data-init')==='1'?body.innerHTML:'';
+  body.setAttribute('data-init','1');
+  body.innerHTML=prev+'<div class="qbub">'+term+'</div>'+
+    '<div class="botmsg" id="pending"><span class="spin"></span> 확인 중…</div>';
+  body.scrollTop=body.scrollHeight;
   try{
-    const r=await fetch('/api/query?q='+encodeURIComponent(term));const j=await r.json();
-    if(!j.found||!j.data){body.innerHTML='<div class="card"><p style="font-size:12.5px;color:var(--dim)">"'+term+'"에 해당하는 정보를 찾지 못했어요.<br><span style="color:var(--dim2)">동체구조 부품(외판·스트링거·프레임 등)을 물어보세요.</span></p></div>';return;}
-    renderAnswer(term,j);
-  }catch(e){body.innerHTML='<div class="card"><p style="font-size:12px;color:var(--dang)">조회 실패</p></div>';}
+    const r=await fetch('/api/ask?q='+encodeURIComponent(term));const j=await r.json();
+    lastPart=j.part||lastPart;
+    document.getElementById('pending').outerHTML=renderBot(j.answer);
+  }catch(e){ document.getElementById('pending').outerHTML='<div class="botmsg">조회 실패</div>'; }
+  body.scrollTop=body.scrollHeight;
 }
-function renderAnswer(term,j){
-  const d=j.data,total=d.total||0;const defs=(d.defects||[]).filter(x=>x.name);
-  const cases=(d.cases||[]).filter(c=>c.sum);const procs=j.procedures||[];
-  const bars=defs.slice(0,4).map(x=>{const pct=total?Math.round(x.weight*100/total):0;
-    return '<div class="defect"><div class="dl"><b>'+(KOR[x.name]||x.name)+'</b><span>'+x.weight+'건 · '+pct+'%</span></div><div class="track"><div style="width:'+pct+'%;background:'+(COLOR[x.name]||'var(--dim)')+'"></div></div></div>';}).join('');
-  const ev=cases.slice(0,2).map(c=>'<div class="ev" style="background:#0b1119;border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:7px"><div style="font-size:12px;font-weight:700;color:var(--acc2)">'+(KOR[c.cond]||c.cond)+' 과거 사례 <span style="float:right;font-size:10px;color:var(--warn);font-family:monospace">'+(c.fs?'FR'+c.fs:'')+'</span></div><div style="font-size:11px;color:var(--dim);font-family:monospace;margin-top:4px">"'+(c.sum||'').slice(0,90)+'…"</div></div>').join('');
-  const pr=procs.slice(0,1).map(p=>{const st=(p.steps||[]).map((s,i)=>'<span class="chip">'+(i+1)+'. '+s+'</span>').join('');
-    const tl=(p.tools||[]).map(t=>'<span class="chip tool">🔧 '+t+'</span>').join('');
-    return '<div><div style="font-weight:700;font-size:12.5px;color:var(--acc2);margin-bottom:6px">'+p.procedure+'</div>'+st+tl+'</div>';}).join('');
-  let h='<div class="qbub">'+term+'</div>';
-  if(bars)h+='<div class="card"><h3>📊 '+j.part+' 반복 결함 <span style="margin-left:auto;color:var(--dim2);font-weight:400;text-transform:none">총 '+total+'건</span></h3>'+bars+'</div>';
-  if(ev)h+='<div class="card"><h3>📍 과거 사례</h3>'+ev+'</div>';
-  if(pr)h+='<div class="card"><h3>🛠 검사 절차·공구</h3>'+pr+'</div>';
-  document.getElementById('sheetBody').innerHTML=h;
+function renderBot(a){
+  if(!a) return '<div class="botmsg">답변을 만들지 못했어요.</div>';
+  const text=(a.text||'').replace(/\n/g,'<br>');
+  const chips=(a.chips||[]).map(c=>'<span class="rchip" onclick="askServer(\''+c+' '+lastPart+'\')">'+c+'</span>').join('');
+  return '<div class="botmsg">'+text+(chips?'<div class="rchips">'+chips+'</div>':'')+'</div>';
 }
-function closeSheet(){document.getElementById('sheet').classList.remove('show');}
+function closeSheet(){const b=document.getElementById('sheetBody');b.innerHTML='';b.removeAttribute('data-init');document.getElementById('sheet').classList.remove('show');}
 boot();
 </script>
 </body></html>
