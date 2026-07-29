@@ -1,288 +1,354 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MRO Copilot — 정비사 앱 (통합)</title>
+<title>MRO Copilot — 정비 작업 도우미</title>
 <style>
   :root{--bg:#0a0e14;--panel:#131a24;--panel2:#1a2330;--line:#26313f;--line2:#334155;
     --txt:#e8eef5;--dim:#8a99ab;--dim2:#5f6f80;--acc:#22d3ee;--acc2:#2dd4bf;--ok:#4ade80;
-    --warn:#fbbf24;--dang:#f87171;--corr:#fb923c;--crack:#f87171;--dmg:#fbbf24;--violet:#a78bfa;--robot:#a78bfa;}
+    --warn:#fbbf24;--dang:#f87171;--corr:#fb923c;--robot:#a78bfa;
+    --r-red:#f87171;--r-org:#fb923c;--r-yel:#fbbf24;--r-grn:#4ade80;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--txt);font-family:'Pretendard','Malgun Gothic',-apple-system,sans-serif;font-size:14px;line-height:1.55}
-  .app{max-width:760px;margin:0 auto;min-height:100vh;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column}
-  /* 상단: 작업 맥락 */
-  .wohead{background:linear-gradient(120deg,#0d1420,#131a24);border-bottom:1px solid var(--line);padding:14px 18px}
-  .wohead .r1{display:flex;align-items:center;gap:9px}
-  .wohead .badge{font-size:10px;background:rgba(34,211,238,.14);color:var(--acc);border:1px solid rgba(34,211,238,.3);border-radius:20px;padding:2px 10px;font-weight:600}
-  .wohead h1{font-size:16px;font-weight:700;margin-top:6px}
-  .wohead .meta{display:flex;gap:14px;margin-top:5px;font-size:11.5px;color:var(--dim);flex-wrap:wrap}
-  .wohead .meta b{color:var(--txt)}
-  .conn{margin-left:auto;font-size:11px;padding:3px 10px;border-radius:20px}
-  .conn.on{background:rgba(74,222,128,.12);color:var(--ok);border:1px solid rgba(74,222,128,.3)}
-  .conn.off{background:rgba(248,113,113,.12);color:var(--dang);border:1px solid rgba(248,113,113,.3)}
-  /* 진행 체크리스트(가로 스텝) */
-  .steps{display:flex;gap:6px;padding:11px 18px;background:var(--panel2);border-bottom:1px solid var(--line);overflow-x:auto}
-  .stp{display:flex;align-items:center;gap:6px;flex-shrink:0;font-size:11px;color:var(--dim2)}
-  .stp .dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px}
-  .stp.done{color:var(--ok)}.stp.done .dot{border-color:var(--ok);background:rgba(74,222,128,.12);color:var(--ok)}
-  .stp.now{color:var(--acc)}.stp.now .dot{border-color:var(--acc);background:rgba(34,211,238,.12);color:var(--acc)}
-  .stp .arw{color:var(--line2)}
-  /* 대화 영역 */
-  .feed{flex:1;padding:16px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
-  .hint{text-align:center;color:var(--dim2);font-size:12.5px;padding:24px 10px;line-height:1.7}
-  .hint b{color:var(--dim)}
-  .qbub{align-self:flex-end;background:var(--acc);color:#04222b;padding:9px 14px;border-radius:14px 14px 4px 14px;font-size:14px;font-weight:600;max-width:80%}
-  .ans{animation:fade .35s ease}
+  .app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;position:relative}
+  /* 헤더: 작업 맥락 */
+  .head{background:linear-gradient(120deg,#0d1420,#131a24);border-bottom:1px solid var(--line);padding:13px 18px}
+  .head .r1{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim)}
+  .head .r1 .lg{font-weight:800;font-size:13px;color:var(--txt);display:flex;align-items:center;gap:6px}
+  .head .r1 .lg .dot{width:8px;height:8px;border-radius:50%;background:var(--acc)}
+  .head .conn{margin-left:auto;font-size:10.5px;padding:2px 9px;border-radius:20px}
+  .head .conn.on{background:rgba(74,222,128,.12);color:var(--ok)}.head .conn.off{background:rgba(248,113,113,.12);color:var(--dang)}
+  .head h1{font-size:16px;font-weight:700;margin-top:7px}
+  .head .meta{font-size:11.5px;color:var(--dim);margin-top:3px}.head .meta b{color:var(--txt)}
+  /* 5단계 진행바 */
+  .prog{display:flex;padding:12px 14px;background:var(--panel2);border-bottom:1px solid var(--line);gap:2px}
+  .pstep{flex:1;text-align:center;font-size:10px;color:var(--dim2);position:relative}
+  .pstep .n{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:10px;margin:0 auto 4px;background:var(--panel)}
+  .pstep.done{color:var(--ok)}.pstep.done .n{border-color:var(--ok);background:rgba(74,222,128,.14);color:var(--ok)}
+  .pstep.now{color:var(--acc)}.pstep.now .n{border-color:var(--acc);background:rgba(34,211,238,.14);color:var(--acc);box-shadow:0 0 0 3px rgba(34,211,238,.12)}
+  /* 본문 */
+  .body{flex:1;padding:18px;overflow-y:auto}
+  .stage{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  .card{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:10px}
-  .card:last-child{margin-bottom:0}
-  .card h3{font-size:11px;letter-spacing:.5px;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:11px;display:flex;align-items:center;gap:6px}
-  .defect{margin-bottom:9px}.defect:last-child{margin-bottom:0}
-  .defect .dl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
-  .defect .dl span{color:var(--dim);font-variant-numeric:tabular-nums}
-  .track{height:7px;background:#0b1119;border-radius:5px;overflow:hidden}
-  .track div{height:100%;border-radius:5px;transition:width .8s cubic-bezier(.2,.8,.2,1)}
-  .ev{background:#0b1119;border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px}
-  .ev:last-child{margin-bottom:0}
-  .ev .eh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
-  .ev .ac{font-weight:700;font-size:12.5px;color:var(--acc2)}
-  .ev .loc{font-size:10.5px;color:var(--warn);font-family:monospace;background:rgba(251,191,36,.1);padding:2px 7px;border-radius:5px;white-space:nowrap}
-  .ev .txt{font-size:11px;color:var(--dim);line-height:1.5;font-family:monospace}
-  .ev .src{font-size:10px;color:var(--dim2);margin-top:6px}
-  .proc{background:#0b1119;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:9px}
-  .proc:last-child{margin-bottom:0}
-  .proc .pt{font-weight:700;font-size:13px;color:var(--acc2);margin-bottom:5px}
-  .proc .psteps{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
-  .chip{font-size:10.5px;background:#131a24;border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--txt)}
-  .tool{font-size:10.5px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);border-radius:6px;padding:3px 9px;color:var(--acc)}
-  .warn{font-size:10.5px;color:var(--dim);padding:5px 9px;background:rgba(248,113,113,.06);border-left:2px solid var(--dang);border-radius:4px;margin-bottom:4px}
-  .warn b{color:var(--dang)}
-  .psrc{font-size:9.5px;color:var(--dim2);margin-top:5px}
-  /* 로봇 촬영 제안 버튼 */
-  .robotcta{display:flex;align-items:center;gap:10px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.3);border-radius:12px;padding:12px 14px;cursor:pointer;transition:background .15s}
-  .robotcta:hover{background:rgba(167,139,250,.14)}
-  .robotcta .ic{font-size:22px}
-  .robotcta .t{flex:1}.robotcta .t b{font-size:13px;color:var(--robot)}.robotcta .t p{font-size:11px;color:var(--dim);margin-top:1px}
-  .robotcta .go{font-size:11px;color:var(--robot);font-weight:700}
-  /* 입력 바 */
-  .inbar{padding:12px 18px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:9px;align-items:center}
-  .mic{width:44px;height:44px;border-radius:50%;flex-shrink:0;border:none;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04222b;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(34,211,238,.3)}
+  .lead{font-size:13px;color:var(--dim);margin-bottom:14px;text-align:center;line-height:1.6}
+  .lead b{color:var(--txt)}
+  /* 작업 카드 */
+  .wocard{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .wocard .t{font-size:11px;color:var(--dim2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px}
+  .wocard h2{font-size:18px;font-weight:700}
+  .wocard .row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid #1a212b}
+  .wocard .row:last-child{border:none}.wocard .row span{color:var(--dim)}.wocard .row b{color:var(--txt)}
+  .wocard .pri{display:inline-block;font-size:11px;background:rgba(248,113,113,.14);color:var(--dang);border-radius:20px;padding:2px 10px;font-weight:600;margin-top:8px}
+  /* 큰 버튼 */
+  .btn{width:100%;padding:15px;border-radius:13px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s}
+  .btn:active{transform:scale(.98)}
+  .btn.main{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04222b}
+  .btn.robot{background:rgba(167,139,250,.12);border:1.5px solid var(--robot);color:var(--robot)}
+  .btn.ghost{background:var(--panel2);border:1px solid var(--line2);color:var(--txt)}
+  .btn+.btn{margin-top:10px}
+  .caphint{font-size:11.5px;color:var(--dim2);text-align:center;margin:10px 0}
+  /* 촬영 선택 */
+  .reqcuts{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:16px}
+  .reqcuts .t{font-size:11px;color:var(--dim);margin-bottom:8px}
+  .reqcuts .cut{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 0;color:var(--txt)}
+  .reqcuts .cut .lc{margin-left:auto;font-family:monospace;font-size:11px;color:var(--warn)}
+  /* AI 결과 카드 (위험도 먼저) */
+  .result{border-radius:16px;overflow:hidden;border:1px solid var(--line);margin-bottom:14px}
+  .risk{padding:18px;text-align:center;color:#0a0e14}
+  .risk.red{background:linear-gradient(135deg,#f87171,#ef4444)}
+  .risk.org{background:linear-gradient(135deg,#fb923c,#f97316)}
+  .risk.yel{background:linear-gradient(135deg,#fbbf24,#f59e0b)}
+  .risk.grn{background:linear-gradient(135deg,#4ade80,#22c55e)}
+  .risk .lv{font-size:24px;font-weight:800;letter-spacing:-.5px}
+  .risk .sub{font-size:12px;opacity:.85;margin-top:2px;font-weight:600}
+  .rbody{background:var(--panel2);padding:16px}
+  .rbody .row{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:8px 0;border-bottom:1px solid #1a212b}
+  .rbody .row:last-of-type{border:none}
+  .rbody .row span{color:var(--dim);font-size:12.5px}.rbody .row b{color:var(--txt);font-weight:600}
+  .rbody .row .big{font-size:16px}
+  /* 드릴다운(근거) */
+  .drill{margin-top:12px}
+  .dbtn{width:100%;display:flex;align-items:center;gap:8px;background:#0b1119;border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--dim);font-size:12.5px;cursor:pointer;font-family:inherit;margin-bottom:7px}
+  .dbtn:hover{border-color:var(--acc);color:var(--acc)}
+  .dbtn .ar{margin-left:auto;transition:transform .2s}
+  .dbtn.open .ar{transform:rotate(90deg)}
+  .dpanel{display:none;padding:11px 13px;background:#0b1119;border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;margin-top:-9px;margin-bottom:7px}
+  .dpanel.show{display:block;animation:fade .25s}
+  .dpanel .ev{margin-bottom:9px}.dpanel .ev:last-child{margin-bottom:0}
+  .dpanel .ev .eh{display:flex;justify-content:space-between;gap:8px;margin-bottom:4px}
+  .dpanel .ev .ac{font-size:12px;font-weight:700;color:var(--acc2)}
+  .dpanel .ev .lc{font-size:10.5px;color:var(--warn);font-family:monospace;white-space:nowrap}
+  .dpanel .ev .tx{font-size:11px;color:var(--dim);font-family:monospace;line-height:1.5}
+  .dpanel .ev .sc{font-size:9.5px;color:var(--dim2);margin-top:4px}
+  .dpanel .chip{display:inline-block;font-size:10.5px;background:#131a24;border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:2px 3px 2px 0;color:var(--txt)}
+  .dpanel .tool{color:var(--acc);border-color:rgba(34,211,238,.2);background:rgba(34,211,238,.06)}
+  .dpanel .warn{font-size:10.5px;color:var(--dim);padding:5px 8px;background:rgba(248,113,113,.06);border-left:2px solid var(--dang);border-radius:4px;margin:4px 0}
+  .dpanel .warn b{color:var(--dang)}
+  .dpanel .conf{font-size:11px;color:var(--dim);text-align:center;padding:4px}.dpanel .conf b{color:var(--txt);font-size:15px}
+  /* 결정 버튼 */
+  .decide{margin-top:6px}
+  .decide .lbl{font-size:12px;color:var(--dim);text-align:center;margin-bottom:9px}
+  .jbtns{display:flex;gap:8px}
+  .jb{flex:1;padding:14px 6px;border-radius:12px;border:1.5px solid var(--line2);background:#0b1119;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+  .jb.ok{border-color:rgba(74,222,128,.4);color:var(--ok)}
+  .jb.re{border-color:rgba(251,191,36,.4);color:var(--warn)}
+  .jb.fix{border-color:rgba(248,113,113,.4);color:var(--dang)}
+  /* 완료 */
+  .done-c{text-align:center;padding:20px 10px}
+  .done-c .ic{font-size:44px;margin-bottom:12px}
+  .done-c h2{font-size:19px;font-weight:700;margin-bottom:6px}
+  .done-c p{font-size:13px;color:var(--dim);line-height:1.6}
+  .recbox{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;margin:16px 0;text-align:left}
+  .recbox .row{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0}
+  .recbox .row span{color:var(--dim)}.recbox .row b{color:var(--txt)}
+  .recbox .auto{color:var(--ok);font-size:10.5px}
+  /* 하단 질문 바 (보조) */
+  .askbar{border-top:1px solid var(--line);background:var(--panel);padding:11px 16px;display:flex;gap:9px;align-items:center}
+  .mic{width:42px;height:42px;border-radius:50%;flex-shrink:0;border:none;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04222b;font-size:17px}
   .mic.rec{background:linear-gradient(135deg,var(--dang),#f97316);animation:pulse 1s infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,.5)}50%{box-shadow:0 0 0 8px rgba(248,113,113,0)}}
-  .qin{flex:1;background:#0b1119;border:1px solid var(--line2);border-radius:22px;padding:12px 16px;color:var(--txt);font-size:15px;font-family:inherit}
-  .qin::placeholder{color:var(--dim2)}
-  .send{width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;background:var(--acc);color:#04222b;font-size:17px;flex-shrink:0}
-  .quick{display:flex;gap:7px;padding:0 18px 12px;background:var(--panel);overflow-x:auto}
-  .qk{flex-shrink:0;font-size:11.5px;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:6px 12px;color:var(--dim);cursor:pointer}
-  .qk:hover{border-color:var(--acc);color:var(--acc)}
-  /* 로봇 팝업 */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .askin{flex:1;background:#0b1119;border:1px solid var(--line2);border-radius:22px;padding:11px 15px;color:var(--txt);font-size:14px;font-family:inherit}
+  .askin::placeholder{color:var(--dim2)}
+  /* 질문 답변 오버레이 */
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:60}
+  .sheet.show{display:flex;animation:fade .25s}
+  .sheetbox{background:var(--panel);border:1px solid var(--line2);border-radius:18px 18px 0 0;width:100%;max-width:480px;max-height:80vh;overflow-y:auto}
+  .sheetbox .sh{position:sticky;top:0;display:flex;align-items:center;gap:8px;padding:14px 16px;background:var(--panel);border-bottom:1px solid var(--line);font-weight:700}
+  .sheetbox .sh .x{margin-left:auto;cursor:pointer;color:var(--dim);font-size:19px}
+  .sheetbody{padding:14px 16px}
+  .qbub{background:var(--acc);color:#04222b;padding:8px 13px;border-radius:12px;font-size:13px;font-weight:600;margin-bottom:12px;display:inline-block}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px}
+  .card h3{font-size:11px;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:10px;display:flex;gap:6px}
+  .defect{margin-bottom:8px}.defect .dl{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
+  .defect .dl span{color:var(--dim)}.track{height:6px;background:#0b1119;border-radius:4px;overflow:hidden}.track div{height:100%;transition:width .7s}
+  /* 로봇 촬영 모달 */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;z-index:70;padding:16px}
   .modal.show{display:flex;animation:fade .25s}
-  .sheet{background:var(--panel);border:1px solid var(--line2);border-radius:16px;width:100%;max-width:440px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)}
-  .sheet .sh{display:flex;align-items:center;gap:9px;padding:13px 16px;background:linear-gradient(90deg,#1a1430,#131a24);border-bottom:1px solid var(--line)}
-  .sheet .sh b{font-weight:700;font-size:14px}.sheet .sh .x{margin-left:auto;cursor:pointer;color:var(--dim);font-size:18px}
-  .cam{position:relative;height:230px;background:#05080d;overflow:hidden}
+  .msheet{background:var(--panel);border:1px solid var(--line2);border-radius:16px;width:100%;max-width:420px;overflow:hidden}
+  .msheet .sh{display:flex;align-items:center;gap:8px;padding:13px 16px;background:linear-gradient(90deg,#1a1430,#131a24);border-bottom:1px solid var(--line);font-weight:700;font-size:14px}
+  .msheet .sh .x{margin-left:auto;cursor:pointer;color:var(--dim);font-size:18px}
+  .cam{position:relative;height:210px;background:#05080d;overflow:hidden}
   .cam img{width:100%;height:100%;object-fit:cover;filter:brightness(.82) contrast(1.05)}
-  .cam .ov{position:absolute;inset:0;box-shadow:inset 0 0 80px rgba(5,8,13,.7)}
-  .cam .scan{position:absolute;left:0;right:0;height:60px;background:linear-gradient(180deg,transparent,rgba(167,139,250,.3),transparent);animation:scan 2.6s ease-in-out infinite}
-  @keyframes scan{0%,100%{top:6%}50%{top:74%}}
-  .cam .bb{position:absolute;border:2px solid #fb923c;border-radius:4px;animation:bp 1.6s infinite}
+  .cam .ov{position:absolute;inset:0;box-shadow:inset 0 0 70px rgba(5,8,13,.7)}
+  .cam .scan{position:absolute;left:0;right:0;height:55px;background:linear-gradient(180deg,transparent,rgba(167,139,250,.3),transparent);animation:scan 2.4s ease-in-out infinite}
+  @keyframes scan{0%,100%{top:5%}50%{top:76%}}
+  .cam .bb{position:absolute;top:30%;left:26%;width:44%;height:50%;border:2px solid #fb923c;border-radius:4px;animation:bp 1.6s infinite}
   @keyframes bp{50%{border-color:rgba(251,146,60,.4)}}
-  .cam .bbt{position:absolute;font-family:monospace;font-size:9px;background:#fb923c;color:#0a0e14;padding:1px 6px;border-radius:3px;font-weight:700}
-  .cam .lbl{position:absolute;top:10px;left:12px;font-family:monospace;font-size:10px;color:var(--robot);background:rgba(0,0,0,.5);padding:3px 8px;border-radius:5px;display:flex;gap:6px;align-items:center}
-  .cam .rec{width:7px;height:7px;border-radius:50%;background:var(--dang);animation:blink 1.1s infinite}
+  .cam .bbt{position:absolute;top:-17px;left:-2px;font-family:monospace;font-size:9px;background:#fb923c;color:#0a0e14;padding:1px 6px;border-radius:3px;font-weight:700}
+  .cam .lbl{position:absolute;top:9px;left:11px;font-family:monospace;font-size:9.5px;color:var(--robot);background:rgba(0,0,0,.5);padding:3px 8px;border-radius:5px;display:flex;gap:5px;align-items:center}
+  .cam .rc{width:6px;height:6px;border-radius:50%;background:var(--dang);animation:blink 1.1s infinite}
   @keyframes blink{50%{opacity:.3}}
-  .sbody{padding:15px 16px}
-  .rst{display:flex;align-items:center;gap:10px;background:#0b1119;border:1px solid rgba(251,146,60,.3);border-radius:10px;padding:11px}
-  .rst .b{width:40px;height:40px;border-radius:8px;background:rgba(251,146,60,.15);border:1.5px solid var(--warn);display:flex;align-items:center;justify-content:center;font-size:17px}
-  .rst .i{flex:1}.rst .i .t{font-weight:700;font-size:13px;color:var(--warn)}.rst .i .s{font-size:10.5px;color:var(--dim);margin-top:2px}
-  .rst .c{font-family:monospace;text-align:right}.rst .c b{font-size:15px;color:var(--warn)}.rst .c span{display:block;font-size:8.5px;color:var(--dim2)}
-  .note{font-size:10.5px;color:var(--dim);margin:9px 0;padding:8px 10px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px}
-  .note b{color:var(--dang)}
-  .jbtns{display:flex;gap:8px}
-  .jb{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line2);background:#0b1119;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
-  .jb.ok{border-color:rgba(248,113,113,.4);color:var(--dang)}
-  .jb.no{border-color:rgba(74,222,128,.4);color:var(--ok)}
-  .jb.re{border-color:rgba(251,191,36,.4);color:var(--warn)}
-  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--dim2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite}
+  .mbody{padding:15px 16px;text-align:center}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--dim2);border-top-color:var(--robot);border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
 </style></head><body>
 <div class="app">
-  <div class="wohead">
-    <div class="r1"><span class="badge">오늘 작업</span><span id="conn" class="conn off">연결 확인 중…</span></div>
+  <div class="head">
+    <div class="r1"><span class="lg"><span class="dot"></span>MRO Copilot</span><span>정비 작업 도우미</span><span id="conn" class="conn off">연결 중…</span></div>
     <h1 id="woTitle">작업 불러오는 중…</h1>
     <div class="meta" id="woMeta"></div>
   </div>
-  <div class="steps" id="steps"></div>
-  <div class="feed" id="feed">
-    <div class="hint">🔧 <b>작업 중 궁금한 것을 묻거나</b>, 사각지대는 <b>로봇에게 촬영을 맡기세요.</b><br>
-      아래에서 말하거나(🎙️) 입력하면 절차·과거 사례·주의사항을 바로 찾아드립니다.<br>
-      <span style="color:var(--dim2)">예: "동체 외판 부식 어떻게 검사해?" · "여기 찍어줘"</span></div>
-  </div>
-  <div class="quick" id="quick"></div>
-  <div class="inbar">
-    <button class="mic" id="mic" onclick="startVoice()" title="음성으로 질문">🎙️</button>
-    <input class="qin" id="q" placeholder="질문하거나 '여기 찍어줘'라고 말하세요" onkeydown="if(event.key==='Enter')ask()">
-    <button class="send" onclick="ask()">➤</button>
+  <div class="prog" id="prog"></div>
+  <div class="body" id="body"></div>
+  <div class="askbar">
+    <button class="mic" id="mic" onclick="startVoice()">🎙️</button>
+    <input class="askin" id="ask" placeholder="검사 중 궁금한 걸 물어보세요" onkeydown="if(event.key==='Enter')doAsk()">
   </div>
 </div>
 
-<!-- 로봇 촬영 팝업 -->
-<div class="modal" id="modal">
-  <div class="sheet">
-    <div class="sh">🤖 <b>로봇 촬영</b> <span style="font-size:11px;color:var(--dim);font-weight:400" id="modalLoc"></span><span class="x" onclick="closeModal()">✕</span></div>
-    <div class="cam">
-      <div class="lbl"><span class="rec"></span>CAM-01 · 사각지대</div>
-      <img src="assets/corrosion_al.jpg" alt="검사 영상">
-      <div class="ov"></div><div class="scan"></div>
-      <div class="bb" style="top:30%;left:26%;width:44%;height:50%"><span class="bbt" style="top:-18px;left:-2px" id="bbt">CORROSION</span></div>
-    </div>
-    <div class="sbody" id="modalBody"></div>
-  </div>
-</div>
+<!-- 질문 답변 오버레이 -->
+<div class="sheet" id="sheet"><div class="sheetbox">
+  <div class="sh">💬 <span id="askQ">질문</span><span class="x" onclick="closeSheet()">✕</span></div>
+  <div class="sheetbody" id="sheetBody"></div>
+</div></div>
+
+<!-- 로봇 촬영 모달 -->
+<div class="modal" id="modal"><div class="msheet">
+  <div class="sh">🤖 로봇 촬영 <span style="font-size:11px;color:var(--dim);font-weight:400" id="mLoc"></span><span class="x" onclick="closeModal()">✕</span></div>
+  <div class="cam"><div class="lbl"><span class="rc"></span>CAM-01 · 사각지대</div><img src="assets/corrosion_al.jpg" alt="검사"><div class="ov"></div><div class="scan"></div><div class="bb"><span class="bbt" id="bbt">CORROSION</span></div></div>
+  <div class="mbody" id="mBody"></div>
+</div></div>
 
 <script>
-const KOR={DAMAGED:'손상',CORRODED:'부식',CRACKED:'균열',DENTED:'찍힘',GOUGED:'긁힘',PUNCTURED:'천공',WORN:'마모',DELAMINATED:'박리',BROKEN:'파손',MISSING:'누락','GROUND DAMAGE':'지상손상'};
-const COLOR={DAMAGED:'var(--dmg)',CORRODED:'var(--corr)',CRACKED:'var(--crack)'};
-let WO=null;
+const KOR={DAMAGED:'손상',CORRODED:'부식',CRACKED:'균열',DENTED:'찍힘',GOUGED:'긁힘',PUNCTURED:'천공',WORN:'마모',DELAMINATED:'박리',BROKEN:'파손',MISSING:'누락'};
+const COLOR={DAMAGED:'var(--dmg,#fbbf24)',CORRODED:'var(--corr)',CRACKED:'var(--dang)'};
+// 위험도 매핑 (구조 안전 기준 · 실도입 시 운항영향 통계로 확정)
+const RISK={CRACKED:['red','즉시 조치','구조 안전 직결 — 다음 비행 전 처리'],
+  CORRODED:['org','정비 필요','진행성 손상 — 허용한도 확인 후 조치'],
+  DAMAGED:['org','정비 필요','손상 범위 평가 필요'],
+  PUNCTURED:['red','즉시 조치','관통 손상'],DENTED:['yel','경미','허용한도 내 가능성'],
+  GOUGED:['yel','경미','표면 손상'],WORN:['yel','경미','마모 관찰']};
+let WO=null, STEP=1, FINDING=null;
 
 async function boot(){
-  // 연결 + 오늘 작업
   try{
     const r=await fetch('/api/workflow');const j=await r.json();
-    document.getElementById('conn').className='conn on';
-    document.getElementById('conn').textContent='● 연결됨';
+    document.getElementById('conn').className='conn on';document.getElementById('conn').textContent='● 연결됨';
     WO=j.wo;
     if(WO){
       document.getElementById('woTitle').textContent=WO.purpose||'사각지대 외관검사';
-      document.getElementById('woMeta').innerHTML=
-        '<span>기체 <b>'+(WO.aircraft||'-')+'</b></span>'+
-        '<span>부위 <b>'+(WO.partName||'SKIN')+' · '+(WO.loc||'FR73/STR29L')+'</b></span>'+
-        '<span>계통 <b>'+(WO.sysCode||'5330')+'</b></span>';
-      renderSteps(WO.steps||[]);
+      document.getElementById('woMeta').innerHTML='기체 <b>'+(WO.aircraft||'EMB ERJ190')+'</b> · 부위 <b>'+(WO.partName||'SKIN')+' '+(WO.loc||'FR73/STR29L')+'</b>';
     }
-  }catch(e){
-    document.getElementById('conn').className='conn off';
-    document.getElementById('conn').textContent='✗ 서버 미연결';
-  }
-  // 빠른 질문 칩
-  document.getElementById('quick').innerHTML=
-    ['동체 외판 부식 검사','스트링거','여기 찍어줘','좌석 레일']
-    .map(t=>`<div class="qk" onclick="preset('${t}')">${t.includes('찍')?'🤖 ':'💬 '}${t}</div>`).join('');
+  }catch(e){document.getElementById('conn').className='conn off';document.getElementById('conn').textContent='✗ 미연결';}
+  renderProg();renderStage();
 }
-function renderSteps(steps){
-  const names=['안전조치','로봇 촬영','정비사 판정','기록·승인'];
-  const el=document.getElementById('steps');
-  const list=steps.length?steps:names.map((n,i)=>({seq:i+1,name:n,status:i<1?'DONE':''}));
-  const doneN=list.filter(s=>s.status==='DONE').length;
-  el.innerHTML=list.map((s,i)=>{
-    const cls=s.status==='DONE'?'done':(i===doneN?'now':'');
-    const ic=s.status==='DONE'?'✓':(i+1);
-    return '<div class="stp '+cls+'"><span class="dot">'+ic+'</span>'+(s.name||names[i]||('단계'+(i+1)))+'</div>'+
-      (i<list.length-1?'<span class="arw">›</span>':'');
+const STEPS=[['1','작업 받기'],['2','로봇 촬영'],['3','AI 결과'],['4','판정'],['5','기록']];
+function renderProg(){
+  document.getElementById('prog').innerHTML=STEPS.map((s,i)=>{
+    const n=i+1;const cls=n<STEP?'done':(n===STEP?'now':'');
+    const ic=n<STEP?'✓':s[0];
+    return '<div class="pstep '+cls+'"><div class="n">'+ic+'</div>'+s[1]+'</div>';
   }).join('');
 }
+function go(step){STEP=step;renderProg();renderStage();document.getElementById('body').scrollTop=0;}
 
-// ── 음성 ──
+function renderStage(){
+  const b=document.getElementById('body');
+  if(STEP===1){
+    b.innerHTML='<div class="stage"><div class="lead">오늘 배정된 <b>검사 작업</b>입니다. 확인하고 시작하세요.</div>'+
+      '<div class="wocard"><div class="t">오늘 작업</div><h2>'+(WO?WO.purpose:'사각지대 외관검사')+'</h2>'+
+      '<div class="row"><span>기체</span><b>'+(WO?(WO.aircraft||'EMB ERJ190'):'EMB ERJ190')+'</b></div>'+
+      '<div class="row"><span>검사 부위</span><b>동체 외판 · '+(WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L')+'</b></div>'+
+      '<div class="row"><span>작업 유형</span><b>사각지대 외관검사</b></div>'+
+      '<span class="pri">우선순위 높음</span></div>'+
+      '<button class="btn main" onclick="go(2)">작업 시작 →</button></div>';
+  }
+  else if(STEP===2){
+    b.innerHTML='<div class="stage"><div class="lead">검사할 곳은 <b>손이 닿기 어려운 사각지대</b>입니다.<br>로봇에게 촬영을 맡기거나 직접 촬영하세요.</div>'+
+      '<div class="reqcuts"><div class="t">📷 촬영할 부위</div>'+
+      '<div class="cut">동체 외판 내측 <span class="lc">FR73 / STR29L</span></div></div>'+
+      '<button class="btn robot" onclick="openRobot(\'robot\')">🤖 로봇에게 촬영 맡기기</button>'+
+      '<button class="btn ghost" onclick="openRobot(\'direct\')">📷 직접 촬영·업로드</button>'+
+      '<div class="caphint">💡 "여기 찍어줘"라고 말해도 됩니다</div></div>';
+  }
+  else if(STEP===3){ renderResult(); }
+  else if(STEP===5){
+    const f=FINDING||{};
+    b.innerHTML='<div class="stage"><div class="done-c"><div class="ic">✅</div><h2>작업 기록 완료</h2>'+
+      '<p>검사 결과가 자동으로 저장됐어요.<br>따로 문서를 작성할 필요가 없습니다.</p></div>'+
+      '<div class="recbox">'+
+      '<div class="row"><span>검사 위치</span><b>'+(WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L')+'</b></div>'+
+      '<div class="row"><span>촬영 방법</span><b>'+(captureBy==='direct'?'📷 직접':'🤖 로봇')+' <span class="auto">기록됨</span></b></div>'+
+      '<div class="row"><span>발견</span><b>'+(f.kor||'부식')+' · '+(f.conf||'0.87')+'</b></div>'+
+      '<div class="row"><span>정비사 판정</span><b style="color:'+(f.jcol||'var(--dang)')+'">'+(f.judge||'수리')+'</b></div>'+
+      '<div class="row"><span>작업 기록</span><b class="auto">자동 저장 ✓</b></div></div>'+
+      (f.judge==='수리'?'<p style="font-size:12px;color:var(--dim);text-align:center;line-height:1.6">→ 승인 시 이 사례가 <b style="color:var(--txt)">다음 검사에 재활용</b>됩니다.</p>':'')+
+      '<button class="btn ghost" onclick="restart()" style="margin-top:16px">새 작업 시작</button></div>';
+  }
+}
+function renderResult(){
+  const f=FINDING||{cond:'CORRODED',conf:'0.87'};
+  const rk=RISK[f.cond]||['org','정비 필요',''];
+  const kor=KOR[f.cond]||'부식';f.kor=kor;
+  const loc=WO?(WO.loc||'FR73 / STR29L'):'FR73 / STR29L';
+  const capLead = captureBy==='direct' ? '촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>' : '로봇이 촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>';
+  document.getElementById('body').innerHTML='<div class="stage">'+
+    '<div class="lead">'+capLead+'<br>결과를 확인하고 판정하세요.</div>'+
+    '<div class="result">'+
+      '<div class="risk '+rk[0]+'"><div class="lv">'+(rk[0]==='red'?'🔴':(rk[0]==='org'?'🟠':(rk[0]==='yel'?'🟡':'🟢')))+' '+rk[1]+'</div><div class="sub">'+rk[2]+'</div></div>'+
+      '<div class="rbody">'+
+        '<div class="row"><span>결함 종류</span><b class="big">'+kor+' ('+f.cond+')</b></div>'+
+        '<div class="row"><span>위치</span><b>동체 외판 · '+loc+'</b></div>'+
+        '<div class="row"><span>다음 조치</span><b>부식 제거·처리 (검사 절차 아래)</b></div>'+
+        '<div class="row"><span>예상 소요</span><b>약 25분</b></div>'+
+      '</div></div>'+
+    // 드릴다운
+    '<div class="drill">'+
+      '<div class="dbtn" onclick="toggle(this,\'d1\')">🔎 왜 이렇게 판단했나 · 과거 사례 <span class="ar">›</span></div><div class="dpanel" id="d1"></div>'+
+      '<div class="dbtn" onclick="toggle(this,\'d2\')">🛠 검사 절차·공구·주의사항 <span class="ar">›</span></div><div class="dpanel" id="d2"></div>'+
+    '</div>'+
+    // 결정
+    '<div class="decide"><div class="lbl">이 결과를 어떻게 처리할까요?</div>'+
+    '<div class="jbtns"><button class="jb ok" onclick="judge(\'정상\',\'var(--ok)\')">✓ 정상</button>'+
+    '<button class="jb re" onclick="judge(\'재검사\',\'var(--warn)\')">↺ 재검사</button>'+
+    '<button class="jb fix" onclick="judge(\'수리\',\'var(--dang)\')">🔧 수리</button></div></div>'+
+    '</div>';
+  loadDrill();
+}
+async function loadDrill(){
+  // 과거 사례 + 절차를 지식그래프에서
+  try{
+    const r=await fetch('/api/query?q=SKIN');const j=await r.json();
+    const d=j.data||{};const cases=(d.cases||[]).filter(c=>c.sum).slice(0,2);
+    const procs=(j.procedures||[]).slice(0,2);
+    document.getElementById('d1').innerHTML=(cases.length?cases.map(c=>'<div class="ev"><div class="eh"><span class="ac">'+(KOR[c.cond]||c.cond)+' 과거 사례</span><span class="lc">'+(c.fs?'FR'+c.fs:'')+(c.str?' / STR'+c.str:'')+'</span></div><div class="tx">"'+(c.sum||'').slice(0,110)+'…"</div><div class="sc">📄 실제 정비 보고 · '+(c.ac||'-')+'</div></div>').join(''):'<p style="font-size:11px;color:var(--dim2)">유사 사례 조회 중…</p>')+
+      '<div class="conf" style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px">AI 신뢰도 <b>87%</b> · 같은 부위에서 부식이 반복 보고됨</div>';
+    document.getElementById('d2').innerHTML=procs.length?procs.map(p=>{
+      const st=(p.steps||[]).map((s,i)=>'<span class="chip">'+(i+1)+'. '+s+'</span>').join('');
+      const tl=(p.tools||[]).map(t=>'<span class="chip tool">🔧 '+t+'</span>').join('');
+      const wn=(p.warnings||[]).filter(w=>w.text).slice(0,2).map(w=>'<div class="warn"><b>'+w.type+'</b> '+w.text+'</div>').join('');
+      return '<div style="margin-bottom:10px"><div style="font-weight:700;font-size:12.5px;color:var(--acc2);margin-bottom:5px">'+p.procedure+'</div>'+st+tl+wn+'<div class="sc" style="margin-top:4px">📘 '+(p.source||'FAA 핸드북')+' · '+(p.page||'')+'</div></div>';
+    }).join(''):'<p style="font-size:11px;color:var(--dim2)">절차 조회 중…</p>';
+  }catch(e){}
+}
+function toggle(btn,id){btn.classList.toggle('open');document.getElementById(id).classList.toggle('show');}
+
+// ── 로봇/직접 촬영 ──
+let captureBy='robot';
+function openRobot(by){
+  captureBy = by || 'robot';
+  const m=document.getElementById('modal');m.classList.add('show');
+  document.querySelector('#modal .sh').firstChild.textContent = captureBy==='direct' ? '📷 직접 촬영 ' : '🤖 로봇 촬영 ';
+  document.getElementById('mLoc').textContent=WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L';
+  const msg = captureBy==='direct' ? '촬영·업로드 중…' : '로봇 이동·조명·촬영 중…';
+  document.getElementById('mBody').innerHTML='<div style="color:var(--dim2);font-size:12.5px;padding:12px"><span class="spin"></span> '+msg+'</div>';
+  fetch('/api/robot').then(r=>r.json()).then(j=>{
+    const sc=j.scene||{};const conf=sc.candConf!=null?sc.candConf:0.87;const quality=sc.quality!=null?sc.quality:0.92;
+    document.getElementById('bbt').textContent='CORROSION '+conf;
+    setTimeout(()=>{
+      document.getElementById('mBody').innerHTML='<p style="font-size:13px;color:var(--txt);margin-bottom:6px">촬영 완료 · 품질 <b>'+quality+'</b> ✓</p>'+
+        '<p style="font-size:12px;color:var(--dim);margin-bottom:12px">AI가 이상 후보를 표시했어요.</p>'+
+        '<button class="btn main" onclick="captured('+conf+')">AI 결과 보기 →</button>';
+    },1500);
+  }).catch(()=>{setTimeout(()=>{document.getElementById('mBody').innerHTML='<button class="btn main" onclick="captured(0.87)">AI 결과 보기 →</button>';},1200);});
+}
+function captured(conf){FINDING={cond:'CORRODED',conf:conf};closeModal();go(3);}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+function judge(v,col){FINDING=FINDING||{};FINDING.judge=v;FINDING.jcol=col;go(5);}
+function restart(){FINDING=null;go(1);}
+
+// ── 질문(보조) ──
 let recog=null,recActive=false;
 function startVoice(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  const mic=document.getElementById('mic');
-  if(!SR){addQ('(음성 미지원 — Chrome/Edge에서 사용하거나 텍스트 입력)');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;const mic=document.getElementById('mic');
+  if(!SR){document.getElementById('ask').placeholder='음성 미지원 — Chrome/Edge 또는 텍스트 입력';return;}
   if(recActive){recog&&recog.stop();return;}
-  recog=new SR();recog.lang='ko-KR';recog.interimResults=true;
-  recActive=true;mic.classList.add('rec');
-  document.getElementById('q').placeholder='🎙️ 듣고 있어요…';
-  recog.onresult=function(ev){
-    let t='';for(let i=ev.resultIndex;i<ev.results.length;i++)t+=ev.results[i][0].transcript;
-    document.getElementById('q').value=t;
-    if(ev.results[ev.results.length-1].isFinal){recog.stop();setTimeout(ask,200);}
-  };
+  recog=new SR();recog.lang='ko-KR';recog.interimResults=true;recActive=true;mic.classList.add('rec');
+  document.getElementById('ask').placeholder='🎙️ 듣고 있어요…';
+  recog.onresult=function(ev){let t='';for(let i=ev.resultIndex;i<ev.results.length;i++)t+=ev.results[i][0].transcript;
+    document.getElementById('ask').value=t;
+    if(ev.results[ev.results.length-1].isFinal){recog.stop();setTimeout(doAsk,200);}};
   recog.onerror=function(){recActive=false;mic.classList.remove('rec');};
-  recog.onend=function(){recActive=false;mic.classList.remove('rec');document.getElementById('q').placeholder="질문하거나 '여기 찍어줘'라고 말하세요";};
+  recog.onend=function(){recActive=false;mic.classList.remove('rec');document.getElementById('ask').placeholder='검사 중 궁금한 걸 물어보세요';};
   recog.start();
 }
-function preset(t){document.getElementById('q').value=t;ask();}
-
-// ── 질문 처리 ──
-function addQ(text){
-  const f=document.getElementById('feed');
-  const h=f.querySelector('.hint'); if(h)h.remove();
-  const b=document.createElement('div');b.className='qbub';b.textContent=text;f.appendChild(b);
-  f.scrollTop=f.scrollHeight;
-}
-function addAns(html){
-  const f=document.getElementById('feed');
-  const d=document.createElement('div');d.className='ans';d.innerHTML=html;f.appendChild(d);
-  d.querySelectorAll('.track div').forEach(b=>setTimeout(()=>b.style.width=b.dataset.w+'%',50));
-  f.scrollTop=f.scrollHeight;
-}
-async function ask(){
-  const inp=document.getElementById('q');const term=inp.value.trim();if(!term)return;
-  inp.value='';
-  addQ(term);
-  // "찍어줘/촬영" 감지 → 로봇 팝업
-  if(/찍어|촬영|찍자|찍어줘|스캔|카메라/.test(term)){ openRobot(term); return; }
-  addAns('<div style="color:var(--dim2);font-size:12px;padding:4px 2px"><span class="spin"></span> 지식그래프 조회 중…</div>');
+async function doAsk(){
+  const inp=document.getElementById('ask');const term=inp.value.trim();if(!term)return;inp.value='';
+  if(/찍어|촬영|스캔|카메라/.test(term)){openRobot();return;}
+  const sheet=document.getElementById('sheet');sheet.classList.add('show');
+  document.getElementById('askQ').textContent='"'+term+'"';
+  const body=document.getElementById('sheetBody');
+  body.innerHTML='<div style="color:var(--dim2);font-size:12px;padding:16px;text-align:center"><span class="spin"></span> 찾는 중…</div>';
   try{
     const r=await fetch('/api/query?q='+encodeURIComponent(term));const j=await r.json();
-    document.getElementById('feed').lastChild.remove();
-    if(!j.found||!j.data){ addAns('<div class="card"><p style="color:var(--dim);font-size:12.5px">"'+term+'"에 해당하는 부품을 찾지 못했어요. <span style="color:var(--dim2)">현재 범위: 동체구조(외판·스트링거·프레임·좌석레일·플로어빔)</span></p></div>'); return; }
+    if(!j.found||!j.data){body.innerHTML='<div class="card"><p style="font-size:12.5px;color:var(--dim)">"'+term+'"에 해당하는 정보를 찾지 못했어요.<br><span style="color:var(--dim2)">동체구조 부품(외판·스트링거·프레임 등)을 물어보세요.</span></p></div>';return;}
     renderAnswer(term,j);
-  }catch(e){ document.getElementById('feed').lastChild.remove(); addAns('<div class="card"><p style="color:var(--dang);font-size:12px">조회 실패: '+e.message+'</p></div>'); }
+  }catch(e){body.innerHTML='<div class="card"><p style="font-size:12px;color:var(--dang)">조회 실패</p></div>';}
 }
 function renderAnswer(term,j){
-  const d=j.data,total=d.total||0;
-  const defs=(d.defects||[]).filter(x=>x.name);
-  const cases=(d.cases||[]).filter(c=>c.sum);
-  const procs=j.procedures||[];
-  const bars=defs.slice(0,5).map(x=>{const pct=total?Math.round(x.weight*100/total):0;const col=COLOR[x.name]||'var(--dim)';
-    return '<div class="defect"><div class="dl"><b>'+(KOR[x.name]||x.name)+'</b><span>'+x.weight+'건 · '+pct+'%</span></div><div class="track"><div data-w="'+pct+'" style="width:0;background:'+col+'"></div></div></div>';}).join('');
-  const ev=cases.slice(0,2).map(c=>'<div class="ev"><div class="eh"><span class="ac">'+(KOR[c.cond]||c.cond)+' 과거 사례</span><span class="loc">'+(c.fs?'FR'+c.fs:'')+(c.str?' / STR'+c.str:'')+'</span></div><div class="txt">"'+(c.sum||'').slice(0,120)+'…"</div><div class="src">📄 FAA SDR · '+(c.ac||'-')+'</div></div>').join('');
-  const pr=procs.slice(0,2).map(p=>{
-    const st=(p.steps||[]).map((s,i)=>'<span class="chip">'+(i+1)+'. '+s+'</span>').join('');
-    const tl=(p.tools||[]).map(t=>'<span class="tool">🔧 '+t+'</span>').join('');
-    const wn=(p.warnings||[]).filter(w=>w.text).slice(0,2).map(w=>'<div class="warn"><b>'+w.type+'</b> '+w.text+'</div>').join('');
-    return '<div class="proc"><div class="pt">'+p.procedure+'</div>'+(st?'<div class="psteps">'+st+'</div>':'')+(tl?'<div class="psteps">'+tl+'</div>':'')+wn+'<div class="psrc">📘 '+(p.source||'FAA 핸드북')+' · '+(p.page||'')+'</div></div>';
-  }).join('');
-  let html='';
-  if(bars) html+='<div class="card"><h3>📊 '+j.part+' 반복 결함 <span style="margin-left:auto;color:var(--dim2);font-weight:400;text-transform:none">총 '+total+'건</span></h3>'+bars+'</div>';
-  if(ev) html+='<div class="card"><h3>📍 과거 사례 (근거)</h3>'+ev+'</div>';
-  if(pr) html+='<div class="card"><h3>🛠 검사 절차·공구·주의사항 <span style="margin-left:auto;color:var(--dim2);font-weight:400;text-transform:none">FAA 핸드북</span></h3>'+pr+'</div>';
-  // 로봇 촬영 제안
-  html+='<div class="robotcta" onclick="openRobot(\'로봇 촬영\')"><span class="ic">🤖</span><div class="t"><b>사각지대는 로봇에게 맡기세요</b><p>'+(WO?(WO.partName||'SKIN')+' · '+(WO.loc||'FR73/STR29L'):'외판 내측')+' 촬영</p></div><span class="go">촬영 ›</span></div>';
-  addAns(html);
+  const d=j.data,total=d.total||0;const defs=(d.defects||[]).filter(x=>x.name);
+  const cases=(d.cases||[]).filter(c=>c.sum);const procs=j.procedures||[];
+  const bars=defs.slice(0,4).map(x=>{const pct=total?Math.round(x.weight*100/total):0;
+    return '<div class="defect"><div class="dl"><b>'+(KOR[x.name]||x.name)+'</b><span>'+x.weight+'건 · '+pct+'%</span></div><div class="track"><div style="width:'+pct+'%;background:'+(COLOR[x.name]||'var(--dim)')+'"></div></div></div>';}).join('');
+  const ev=cases.slice(0,2).map(c=>'<div class="ev" style="background:#0b1119;border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:7px"><div style="font-size:12px;font-weight:700;color:var(--acc2)">'+(KOR[c.cond]||c.cond)+' 과거 사례 <span style="float:right;font-size:10px;color:var(--warn);font-family:monospace">'+(c.fs?'FR'+c.fs:'')+'</span></div><div style="font-size:11px;color:var(--dim);font-family:monospace;margin-top:4px">"'+(c.sum||'').slice(0,90)+'…"</div></div>').join('');
+  const pr=procs.slice(0,1).map(p=>{const st=(p.steps||[]).map((s,i)=>'<span class="chip">'+(i+1)+'. '+s+'</span>').join('');
+    const tl=(p.tools||[]).map(t=>'<span class="chip tool">🔧 '+t+'</span>').join('');
+    return '<div><div style="font-weight:700;font-size:12.5px;color:var(--acc2);margin-bottom:6px">'+p.procedure+'</div>'+st+tl+'</div>';}).join('');
+  let h='<div class="qbub">'+term+'</div>';
+  if(bars)h+='<div class="card"><h3>📊 '+j.part+' 반복 결함 <span style="margin-left:auto;color:var(--dim2);font-weight:400;text-transform:none">총 '+total+'건</span></h3>'+bars+'</div>';
+  if(ev)h+='<div class="card"><h3>📍 과거 사례</h3>'+ev+'</div>';
+  if(pr)h+='<div class="card"><h3>🛠 검사 절차·공구</h3>'+pr+'</div>';
+  document.getElementById('sheetBody').innerHTML=h;
 }
-
-// ── 로봇 팝업 ──
-async function openRobot(term){
-  addQ(term);
-  const m=document.getElementById('modal');m.classList.add('show');
-  const body=document.getElementById('modalBody');
-  document.getElementById('modalLoc').textContent=WO?(WO.loc||'FR73 / STR29L'):'FR73 / STR29L';
-  body.innerHTML='<div style="text-align:center;color:var(--dim2);font-size:12px;padding:14px"><span class="spin"></span> 로봇 이동·촬영 중…</div>';
-  let sc={};
-  try{const r=await fetch('/api/robot');const j=await r.json();sc=j.scene||{};}catch(e){}
-  const conf=sc.candConf!=null?sc.candConf:0.87;
-  const quality=sc.quality!=null?sc.quality:0.92;
-  document.getElementById('bbt').textContent='CORROSION '+conf;
-  setTimeout(()=>{
-    body.innerHTML=
-      '<div class="rst"><div class="b">🟠</div><div class="i"><div class="t">CORROSION 부식 후보</div><div class="s">'+(WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L')+' · 품질 '+quality+' ✓</div></div><div class="c"><b>'+conf+'</b><span>신뢰도</span></div></div>'+
-      '<div class="note">⚠️ AI·로봇은 <b>결함후보</b>까지만 표시합니다. 최종 판정은 <b>정비사</b>가 합니다.</div>'+
-      '<div class="jbtns"><button class="jb ok" onclick="judge(\'이상\')">⚠ 이상</button><button class="jb no" onclick="judge(\'정상\')">✓ 정상</button><button class="jb re" onclick="judge(\'재검사\')">↺ 재검사</button></div>';
-  },1400);
-}
-function closeModal(){document.getElementById('modal').classList.remove('show');}
-function judge(v){
-  closeModal();
-  const col=v==='이상'?'var(--dang)':(v==='정상'?'var(--ok)':'var(--warn)');
-  addAns('<div class="card"><h3>🤖 로봇 촬영 결과</h3>'+
-    '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span style="color:var(--dim)">검사 위치</span><b>'+(WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L')+'</b></div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span style="color:var(--dim)">AI 후보</span><b>부식 0.87</b></div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span style="color:var(--dim)">정비사 판정</span><b style="color:'+col+'">'+v+'</b></div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span style="color:var(--dim)">Work Card</span><b style="color:var(--ok)">자동 기록됨 ✓</b></div>'+
-    (v==='이상'?'<p style="font-size:11.5px;color:var(--dim);margin-top:8px;line-height:1.5">→ 다음 조치: 부식 제거·처리 절차로 연계. 승인 시 검증사례로 지식에 축적됩니다.</p>':'')+
-    '</div>');
-}
+function closeSheet(){document.getElementById('sheet').classList.remove('show');}
 boot();
 </script>
 </body></html>
