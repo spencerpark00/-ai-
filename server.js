@@ -429,6 +429,8 @@ let WORKS = [
   {id:'W-237',ac:'A321',      part:'PANEL',   area:'FR45/STR16L',defect:'찍힘',    risk:'주의',status:'대기',robot:null,verdict:null,base:95, lead:null,tech:'신입',quality:null,retake:false,at:null},
   {id:'W-238',ac:'B737',      part:'STRINGER',area:'FR67/STR24R',defect:'부식',    risk:'주의',status:'대기',robot:null,verdict:null,base:130,lead:null,tech:'숙련',quality:null,retake:false,at:null},
 ];
+// 데모 리셋용 초기 스냅샷 (교육생이 작업을 다 완료해도 '새 작업 배정'으로 다시 체험)
+const WORKS_SEED = JSON.parse(JSON.stringify(WORKS));
 // 가동 보드 — 정비사·로봇 5쌍 (가명) · 현재 작업/단계/상태 (이벤트 파생 시연 데이터)
 const PAIRS = [
   {tech:'박재현',grade:'숙련',robot:'MR-01',rst:'대기',  wo:'WO-2607-114',task:'A321-200 HL8290 동체 외판 L2 구역 점검 — 리벳라인 부식·도장 상태 확인',step:'7/12 판독 검토',prog:58,status:'작업중',elapsed:'42분',parallel:null},
@@ -444,9 +446,17 @@ function fleetOf(pairs){
   return Object.entries(m).filter(([k,v])=>v>0||k!=='오류').map(([label,n])=>({label,n,dot:dot[label]}));
 }
 function actText(w){ return w.part+' '+w.defect+' 검사 완료 → '+w.verdict+' ('+(w.robot?'로봇':'직접')+' 촬영)'; }
-let ACTIVITY = WORKS.filter(w=>w.status==='완료')
-  .map(w=>({at:w.at, id:w.id, part:w.part, area:w.area, verdict:w.verdict, by:w.robot?'로봇':'직접', text:actText(w)}))
-  .sort((a,b)=> a.at<b.at?1:-1);
+function deriveActivity(works){
+  return works.filter(w=>w.status==='완료')
+    .map(w=>({at:w.at, id:w.id, part:w.part, area:w.area, verdict:w.verdict, by:w.robot?'로봇':'직접', text:actText(w)}))
+    .sort((a,b)=> a.at<b.at?1:-1);
+}
+let ACTIVITY = deriveActivity(WORKS);
+// 데모 리셋 — 작업 목록·이력을 초기 상태로 복원 (환류로 쌓인 Neo4j 지식은 유지)
+function resetWorks(){
+  WORKS = JSON.parse(JSON.stringify(WORKS_SEED));
+  ACTIVITY = deriveActivity(WORKS);
+}
 
 // 환류(write-back) — 승인된 작업을 Neo4j 지식그래프에 검증사례로 축적
 //   source:'PoC시연' 태그 → 나중에 시연 데이터만 정리 가능
@@ -628,6 +638,11 @@ const server = http.createServer(async (req,res)=>{
       const w = await completeWork(p.id, p.capturedBy, p.verdict);
       return json(res, {ok:!!w, work:w});
     }catch(e){ return json(res, {error:e.message}, 500); }
+  }
+  // API: 데모 새 작업 배정 — 작업 목록을 초기 상태로 리셋 (시연 반복용)
+  if(u.pathname === '/api/works/reset' && req.method==='POST'){
+    resetWorks();
+    return json(res, {ok:true, count:WORKS.filter(w=>w.status!=='완료').length});
   }
 
   // API: 케이스 브라우저 (지식 탭) — Neo4j 검증사례(환류) + 외부사례(FAA SDR) 읽기 전용

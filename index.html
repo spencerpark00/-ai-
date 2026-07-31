@@ -232,10 +232,20 @@ function showList(){
       '<div class="wl-s">'+w.ac+' · '+w.area+'</div></div>'+
       (done?'<span class="wl-done">완료 ✓</span>':'<span class="wl-go">시작 →</span>')+'</div>';
   };
+  const footer = wait.length===0
+    ? '<div class="xfer" style="border-color:rgba(74,222,128,.35)">✅ 오늘 배정 작업을 <b>모두 완료</b>했습니다. 결과는 관리자 현황 대시보드로 전달됐습니다.</div>'+
+      '<button class="btn main" style="margin-top:10px" onclick="newAssignment()">🔄 새 작업 배정받기</button>'
+    : '<div class="xfer">📤 완료한 작업은 <b>관리자 현황 대시보드로 자동 전달</b>됩니다.</div>';
   document.getElementById('body').innerHTML=
     '<div class="stage"><div class="lead">오늘 배정된 <b>정비 작업</b>입니다. 하나씩 처리하세요.</div>'+
     '<div class="worklist">'+WORKS.map(card).join('')+'</div>'+
-    '<div class="xfer">📤 완료한 작업은 <b>관리자 현황 대시보드로 자동 전달</b>됩니다.</div></div>';
+    footer+'</div>';
+}
+// 데모 새 작업 배정 — 목록을 초기 상태로 되돌려 반복 체험 (환류 지식은 유지)
+async function newAssignment(){
+  try{ await fetch('/api/works/reset',{method:'POST'}); }catch(e){}
+  await loadWorks(); showList();
+  toast('새 정비 작업이 배정됐습니다');
 }
 function pickWork(id){
   CURWORK=WORKS.find(w=>w.id===id); if(!CURWORK)return;
