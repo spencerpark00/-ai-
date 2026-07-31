@@ -295,7 +295,9 @@ function geminiComplete(system, turns){
     const payload = JSON.stringify({
       system_instruction:{ parts:[{text:system}] },
       contents,
-      generationConfig:{ temperature:0.6, maxOutputTokens:800 }  // 자연스러움 위해 온도↑
+      // gemini-flash-latest는 thinking 모델 → 생각이 토큰을 먹어 답이 잘림.
+      // 생각 끄기(thinkingBudget:0)는 이 모델에서 빈 응답 → 대신 여유를 넉넉히 준다.
+      generationConfig:{ temperature:0.6, maxOutputTokens:2048 }  // 자연스러움 위해 온도↑
     });
     const req = https.request({
       method:'POST',
