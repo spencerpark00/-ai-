@@ -681,8 +681,8 @@ const server = http.createServer(async (req,res)=>{
     }catch(e){ return json(res, {error:e.message}, 500); }
   }
 
-  // 정적 파일
-  let f = u.pathname === '/' ? '/index.html' : u.pathname;
+  // 정적 파일 — 최초 진입은 통합 로그인 랜딩(역할 선택). 정비사=/index.html, 관리자=/manager.html
+  let f = u.pathname === '/' ? '/login.html' : u.pathname;
   const fp = path.join(ROOT, decodeURIComponent(f));
   if(!fp.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(fp, (err,data)=>{

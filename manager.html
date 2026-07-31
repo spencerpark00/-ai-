@@ -70,7 +70,7 @@
   svg .ln{fill:none;stroke-width:2.2}
 </style></head>
 <body>
-<div id="login" style="position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#0e1c33 0%,#16304f 60%,#1c3a5e 100%)">
+<div id="login" style="position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:linear-gradient(160deg,#0e1c33 0%,#16304f 60%,#1c3a5e 100%)">
   <div style="width:400px;background:#fff;border-radius:14px;padding:40px 40px 32px;box-shadow:0 24px 60px rgba(4,12,28,.45)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
       <div style="width:34px;height:34px;border-radius:8px;background:#16304f;color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px 'IBM Plex Mono'">M</div>
@@ -295,18 +295,23 @@ function render(){
   $('#view').innerHTML = (map[S.view]||viewOps)();
   const c2=document.getElementById('clk2'); if(c2) c2.textContent=$('#clock').textContent;
 }
-// ── 로그인 / 로그아웃 ──
+// ── 진입 가드 / 로그아웃 (로그인은 통합 랜딩 /login.html 에서 처리) ──
 let _poll=null, _started=false;
-function doLogin(){
+function startApp(){
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='flex';
   if(!_started){ loadOps(); _poll=setInterval(loadOps,4000); _started=true; } else loadOps();
 }
 function doLogout(){
   if(_poll){ clearInterval(_poll); _poll=null; _started=false; }
-  document.getElementById('app').style.display='none';
-  document.getElementById('login').style.display='flex';
+  try{ sessionStorage.removeItem('mroRole'); }catch(e){}
+  location.replace('/');            // 통합 로그인 창으로
 }
-document.addEventListener('keydown',e=>{ if(e.key==='Enter' && document.getElementById('login').style.display!=='none') doLogin(); });
+// 관리자로 로그인하지 않고 직접 URL 접근하면 로그인 창으로 되돌림
+(function(){
+  var ok=false; try{ ok = sessionStorage.getItem('mroRole')==='manager'; }catch(e){}
+  if(!ok){ location.replace('/'); return; }
+  startApp();
+})();
 </script>
 </body></html>

@@ -167,7 +167,7 @@
 </style></head><body>
 <div class="app">
   <div class="head">
-    <div class="r1"><span class="lg"><span class="dot"></span>MRO Copilot</span><span>정비 작업 도우미</span><span id="conn" class="conn off">연결 중…</span></div>
+    <div class="r1"><span class="lg"><span class="dot"></span>MRO Copilot</span><span>정비 작업 도우미</span><span id="conn" class="conn off">연결 중…</span><span onclick="doLogout()" style="font-size:10.5px;color:var(--dim2);cursor:pointer;padding:2px 4px" title="로그아웃">로그아웃</span></div>
     <h1 id="woTitle">작업 불러오는 중…</h1>
     <div class="meta" id="woMeta"></div>
   </div>
@@ -197,6 +197,9 @@
 </div></div>
 
 <script>
+// ── 진입 가드 / 로그아웃 (로그인은 통합 랜딩 /login.html 에서 처리) ──
+function isTech(){ try{ return sessionStorage.getItem('mroRole')==='tech'; }catch(e){ return false; } }
+function doLogout(){ try{ sessionStorage.removeItem('mroRole'); }catch(e){} location.replace('/'); }
 const KOR={DAMAGED:'손상',CORRODED:'부식',CRACKED:'균열',DENTED:'찍힘',GOUGED:'긁힘',PUNCTURED:'천공',WORN:'마모',DELAMINATED:'박리',BROKEN:'파손',MISSING:'누락'};
 const COLOR={DAMAGED:'var(--dmg,#fbbf24)',CORRODED:'var(--corr)',CRACKED:'var(--dang)'};
 // 위험도 매핑 (구조 안전 기준 · 실도입 시 운항영향 통계로 확정)
@@ -445,6 +448,7 @@ function renderBot(a){
   return '<div class="botmsg">'+text+(chips?'<div class="rchips">'+chips+'</div>':'')+'</div>';
 }
 function closeSheet(){const b=document.getElementById('sheetBody');b.innerHTML='';b.removeAttribute('data-init');chatHist=[];document.getElementById('sheet').classList.remove('show');}
-boot();
+// 정비사로 로그인하지 않고 직접 접근하면 로그인 창으로 되돌림
+if(isTech()){ boot(); } else { location.replace('/'); }
 </script>
 </body></html>
