@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MRO OPS CENTER · 작업관리자 대시보드</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#0e1c33;--acc:#2b5fa8;--acc2:#1d4d92;--ink:#1c2430;--dim:#6b7686;--dim2:#9aa3b2;
+        --line:#dde3ec;--line2:#eceff4;--bg:#eef1f5;--panel:#fff;
+        --green:#2e7d4f;--greenbg:#e7f4ec;--amber:#7c5a10;--amberbg:#fdf3d8;--red:#a13328;--redbg:#fdeceb;--blue:#2b5fa8;--bluebg:#e8eefb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .mono{font-family:'IBM Plex Mono',monospace}
+  a{color:var(--acc);text-decoration:none} a:hover{text-decoration:underline}
+  @keyframes blinkdot{0%,100%{opacity:1}50%{opacity:.35}}
+  ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c6cdd8;border-radius:4px}
+  .app{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  .hd{height:52px;flex:none;background:var(--navy);color:#e8edf5;display:flex;align-items:center;padding:0 16px;gap:14px}
+  .logo{width:26px;height:26px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono';color:#fff}
+  .hd .t1{font-size:13px;font-weight:700} .hd .t2{font-size:10.5px;color:#8fa2c0;border-left:1px solid #2a3d5c;padding-left:9px}
+  .hd .mid{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;color:#9fb4d4}
+  .hd .conf{padding:3px 9px;border-radius:4px;background:#7a2532;color:#ffd9de;font-size:10px;font-weight:700;letter-spacing:.6px}
+  .hd .user{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border:1px solid #2a3d5c;border-radius:18px}
+  .hd .av{width:26px;height:26px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .dot{width:7px;height:7px;border-radius:50%;background:#3ecf8e;display:inline-block}
+  .strip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:14px;background:#4a1f24;color:#ffd9de;font-size:12px;font-weight:700}
+  .strip .sd{width:7px;height:7px;border-radius:50%;background:#e05243;animation:blinkdot 1.4s infinite}
+  .body{flex:1;display:flex;min-height:0}
+  .nav{width:192px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:14px 10px;display:flex;flex-direction:column}
+  .nav .lbl{font-size:10px;font-weight:700;color:var(--dim2);letter-spacing:.8px;padding:0 10px 8px}
+  .nv{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:2px;border-radius:8px;cursor:pointer;color:#41506b}
+  .nv:hover{background:#eef2f8} .nv.on{background:var(--bluebg);color:var(--acc2)}
+  .nv .ic{width:20px;text-align:center;font-size:13px} .nv .l{flex:1;line-height:1.2}
+  .nv .l b{font-size:13px;font-weight:500} .nv.on .l b{font-weight:700} .nv .l small{font-size:9.5px;color:var(--dim2)}
+  .nv .bdg{min-width:18px;height:18px;border-radius:9px;background:var(--bluebg);color:var(--acc);font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .nv.rep{border:1px dashed #c9d2df;margin-top:auto}
+  .main{flex:1;min-width:0;overflow:auto;padding:20px 24px 40px}
+  .wrap{max-width:1240px}
+  .h1{font-size:18px;font-weight:700;letter-spacing:-.3px} .h1 span{font-size:12px;font-weight:400;color:#8b95a5}
+  .rowhead{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  .card .ch{display:flex;align-items:baseline;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line2)}
+  .card .ch b{font-size:13.5px;font-weight:700} .card .ch small{font-size:11px;color:#8b95a5}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .ct{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .ct .cl{font-size:11.5px;color:var(--dim)} .ct .cl small{font-size:9.5px;color:var(--dim2)}
+  .ct .cv{font:700 26px 'IBM Plex Mono';margin-top:4px} .ct .cn{font-size:11px;color:var(--dim2)}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,320px);gap:14px;align-items:start}
+  .half{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;white-space:nowrap;display:inline-block}
+  .b-green{background:var(--greenbg);color:var(--green)} .b-amber{background:var(--amberbg);color:var(--amber)}
+  .b-red{background:var(--redbg);color:var(--red)} .b-blue{background:var(--bluebg);color:var(--blue)} .b-gray{background:#eceff4;color:var(--dim)}
+  .chk{font-size:9.5px;font-weight:700;padding:1.5px 6px;border-radius:3px;white-space:nowrap}
+  .chk.ok{background:var(--greenbg);color:var(--green)} .chk.no{background:var(--redbg);color:var(--red)}
+  .rowbar{display:flex;align-items:center;gap:10px;margin:9px 0} .rowbar .lb{width:96px;font-size:12px;color:#41506b;flex:none}
+  .rowbar .tk{flex:1;height:14px;background:var(--line2);border-radius:5px;overflow:hidden} .rowbar .tk i{display:block;height:100%;border-radius:5px}
+  .rowbar .nm{width:32px;text-align:right;font-weight:700;font-size:12px;font-family:'IBM Plex Mono'}
+  .prog{height:4px;background:var(--line2);border-radius:2px;margin-top:4px;width:88px} .prog i{display:block;height:4px;border-radius:2px;background:var(--acc)}
+  table{width:100%;border-collapse:collapse} th{font-size:10.5px;font-weight:700;color:var(--dim2);text-align:left;padding:8px 16px;border-bottom:1px solid var(--line2)}
+  td{padding:11px 16px;border-bottom:1px solid var(--line2);font-size:12px;vertical-align:top}
+  tr:hover td{background:#fafbfd}
+  .muted{font-size:10.5px;color:var(--dim2);padding:9px 16px}
+  .tl{display:flex;gap:10px;padding:6px 0;font-size:11.5px;border-bottom:1px solid #f5f6f9}
+  .tl .tm{font:500 10.5px 'IBM Plex Mono';color:var(--dim2);width:38px;flex:none;padding-top:1px}
+  .tl .td2{color:#41506b;line-height:1.45}
+  .sel{height:32px;border:1px solid #c9d2df;border-radius:7px;padding:0 8px;font-size:12px;font-family:inherit;background:#fff;color:#41506b}
+  .togg{height:32px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700}
+  .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--acc);border-radius:50%;display:inline-block;animation:sp .7s linear infinite;vertical-align:-3px}@keyframes sp{to{transform:rotate(360deg)}}
+  svg .ln{fill:none;stroke-width:2.2}
+</style></head>
+<body>
+<div id="login" style="position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#0e1c33 0%,#16304f 60%,#1c3a5e 100%)">
+  <div style="width:400px;background:#fff;border-radius:14px;padding:40px 40px 32px;box-shadow:0 24px 60px rgba(4,12,28,.45)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <div style="width:34px;height:34px;border-radius:8px;background:#16304f;color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px 'IBM Plex Mono'">M</div>
+      <div><div style="font-size:15px;font-weight:700">MRO OPS CENTER</div><div style="font-size:11px;color:#6b7686">항공정비 작업관리 시스템 · Line Maintenance</div></div>
+    </div>
+    <div style="margin:18px 0 22px;padding:9px 12px;background:#f2f5fa;border:1px solid #dde4ee;border-radius:8px;font-size:11.5px;color:#41506b;line-height:1.55">사내 업무망 전용 시스템입니다. 접근 기록이 감사 로그에 저장되며, 무단 접근 시 사내 보안규정에 따라 조치됩니다.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><div style="font-size:11.5px;font-weight:500;color:#41506b;margin-bottom:5px">사번 Employee ID</div>
+        <input id="lg-id" class="mono" value="K-208114" style="width:100%;height:40px;border:1px solid #c9d2df;border-radius:8px;padding:0 12px;font-size:13px;color:#1c2430;background:#fbfcfe"></div>
+      <div><div style="font-size:11.5px;font-weight:500;color:#41506b;margin-bottom:5px">비밀번호 Password</div>
+        <input id="lg-pw" type="password" value="mro-poc-2026" style="width:100%;height:40px;border:1px solid #c9d2df;border-radius:8px;padding:0 12px;letter-spacing:3px;color:#1c2430;background:#fbfcfe;font-family:inherit"></div>
+      <div onclick="doLogin()" style="height:44px;margin-top:8px;border-radius:8px;background:#16304f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:700;cursor:pointer">사내 SSO 로그인</div>
+      <div style="text-align:center;font-size:11px;color:#8b95a5;margin-top:4px">2단계 인증(OTP)은 로그인 후 요청됩니다</div>
+    </div>
+    <div style="margin-top:24px;padding-top:14px;border-top:1px solid #eceff4;display:flex;justify-content:space-between;font-size:10.5px;color:#9aa3b2"><span>대내한 · INTERNAL USE ONLY</span><span class="mono">v2.0 PoC</span></div>
+  </div>
+</div>
+<div class="app" id="app" style="display:none">
+  <div class="hd">
+    <div class="logo">M</div>
+    <div class="t1">MRO OPS CENTER</div>
+    <div class="t2">작업관리자 대시보드</div>
+    <div class="mid" id="mid"><span class="dot"></span> 정상 운영 중</div>
+    <div class="mono" id="clock" style="color:#9fb4d4;font-size:12px"></div>
+    <div class="conf">대내한 · CONFIDENTIAL</div>
+    <div class="user"><div class="av">김</div><div style="line-height:1.25"><div style="font-size:11.5px;font-weight:700">김성재 <span style="font-weight:400;color:#8fa2c0">작업관리자</span></div><div style="font-size:9.5px;color:#8fa2c0">권한 Lv.2 · 정비운영팀</div></div></div>
+    <div onclick="doLogout()" style="font-size:11px;color:#8fa2c0;cursor:pointer;padding:4px 2px">로그아웃</div>
+  </div>
+  <div class="body">
+    <div class="nav">
+      <div class="lbl">MENU</div>
+      <div class="nv on" data-v="ops"><div class="ic">◧</div><div class="l"><b>운영</b><br><small>Operations</small></div><div class="bdg" id="navbadge">·</div></div>
+      <div class="nv" data-v="quality"><div class="ic">◈</div><div class="l"><b>품질</b><br><small>Quality</small></div></div>
+      <div class="nv" data-v="people"><div class="ic">◉</div><div class="l"><b>인재</b><br><small>People</small></div></div>
+      <div class="nv" data-v="knowledge"><div class="ic">❖</div><div class="l"><b>지식</b><br><small>Knowledge</small></div></div>
+      <div class="nv rep" data-v="report"><div class="ic">📄</div><div class="l"><b style="font-weight:500;color:#41506b">효과 리포트</b><br><small>심의·시연 전용</small></div></div>
+    </div>
+    <div class="main"><div class="wrap" id="view"><p style="color:var(--dim)"><span class="spin"></span> 불러오는 중…</p></div></div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const KOR={CORRODED:'부식',CRACKED:'균열',DAMAGED:'손상',DENTED:'찍힘',GOUGED:'긁힘',PUNCTURED:'천공',WORN:'마모'};
+let S={view:'ops', dash:null, works:[], cases:null, fSrc:'all', fInc:false, sel:null};
+
+setInterval(()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const c=$('#clock');if(c)c.textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());},1000);
+
+$$('.nv').forEach(n=>n.onclick=()=>{S.view=n.dataset.v;$$('.nv').forEach(x=>x.classList.remove('on'));n.classList.add('on');
+  if(S.view==='knowledge'&&!S.cases) loadCases(); else render();});
+
+async function loadOps(){
+  try{
+    const [d,w]=await Promise.all([fetch('/api/dashboard').then(r=>r.json()),fetch('/api/works').then(r=>r.json())]);
+    S.dash=d; S.works=w;
+    $('#navbadge').textContent = d.today? d.today.ongoing : '·';
+    const mid=$('#mid');
+    if(d.strip && d.strip.length) mid.innerHTML = d.strip.map(s=>`<span class="strip"><span class="sd"></span>${s.label}</span>`).join(' ');
+    else mid.innerHTML = '<span class="dot"></span> 정상 운영 중 — 개입 필요 항목 없음';
+    if(['ops','quality','report'].includes(S.view)) render();
+  }catch(e){ $('#view').innerHTML='<p style="color:var(--red)">서버 연결 실패 — 서버 확인</p>'; }
+}
+async function loadCases(){ try{ S.cases=await fetch('/api/cases').then(r=>r.json()); }catch(e){ S.cases={cases:[]}; } render(); }
+
+function ct(label,en,val,note,color){ return `<div class="ct"><div class="cl">${label} <small>${en}</small></div>
+  <div style="display:flex;align-items:baseline;gap:6px"><div class="cv" style="color:${color||'var(--ink)'}">${val}</div><div class="cn">${note||''}</div></div></div>`; }
+function bar(lb,n,max,color){ const w=Math.max(6,Math.round(n/max*100)); return `<div class="rowbar"><div class="lb">${lb}</div><div class="tk"><i style="width:${w}%;background:${color}"></i></div><div class="nm">${n}</div></div>`; }
+function fmtTime(iso){ if(!iso) return ''; try{return new Date(iso).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} }
+
+function viewOps(){
+  const d=S.dash, t=d.today, o=d.ops;
+  const chip=s=>({'작업중':'b-green','승인 대기':'b-amber','대기':'b-gray','재촬영':'b-amber','오류→직접 전환':'b-red','충전/점검':'b-blue'}[s]||'b-gray');
+  const rchip=s=>({'촬영중':'b-blue','이동중':'b-green','대기':'b-gray','충전중':'b-amber','오류':'b-red'}[s]||'b-gray');
+  const lvchip=g=>({'숙련':'b-blue','중급':'b-gray','신입':'b-amber'}[g]||'b-gray');
+  const rows=(d.pairs||[]).map(p=>`<tr>
+    <td style="width:150px"><b>${p.tech}</b> <span class="badge ${lvchip(p.grade)}" style="font-size:9px">${p.grade}</span>
+      <div style="margin-top:4px;font-size:10.5px;color:var(--dim)"><span class="mono">🤖 ${p.robot}</span> <span class="badge ${rchip(p.rst)}" style="font-size:9px">${p.rst}</span></div></td>
+    <td><span class="mono" style="color:var(--acc);font-size:11px">${p.wo}</span>
+      <div style="color:#41506b;font-size:11.5px;line-height:1.4">${p.task}</div>
+      ${p.parallel?`<div style="display:inline-block;margin-top:4px;font-size:10px;color:#7c5a10;background:#fdf3d8;padding:1px 7px;border-radius:3px">⇄ 병행 — ${p.parallel}</div>`:''}</td>
+    <td style="width:112px"><div style="font-size:11px;color:#41506b">${p.step}</div><div class="prog"><i style="width:${p.prog}%"></i></div></td>
+    <td style="width:86px"><span class="badge ${chip(p.status)}">${p.status}</span></td>
+    <td style="width:50px;text-align:right;color:var(--dim)" class="mono">${p.elapsed}</td></tr>`).join('');
+  const queue=S.works.filter(x=>x.status==='완료'&&x.verdict==='수리');
+  const qhtml=queue.length?queue.map(x=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line2)">
+    <span class="mono" style="color:var(--acc);font-size:11px;width:130px">${x.id}</span><div style="flex:1;font-size:12px;color:#41506b">${x.part} ${x.defect} — 수리 판정 승인 요청</div><div style="font-size:11px;color:var(--dim)">${x.tech||''}</div></div>`).join('')
+    :'<div style="padding:22px 16px;text-align:center;color:var(--dim2);font-size:12px">승인 대기 없음</div>';
+  const fleet=(d.fleet||[]).map(f=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:7px;background:#f7f9fc;font-size:11px;color:#41506b"><div style="width:7px;height:7px;border-radius:50%;background:${f.dot}"></div>${f.label} <b class="mono" style="margin-left:auto">${f.n}</b></div>`).join('');
+  const tl=(d.activity||[]).map(a=>`<div class="tl"><div class="tm">${fmtTime(a.at)}</div><div style="width:6px;height:6px;border-radius:50%;background:${a.verdict==='수리'?'#e05243':(a.verdict==='재검사'?'#d9a514':'#2e7d4f')};flex:none;margin-top:5px"></div><div class="td2">${a.text}</div></div>`).join('');
+  return `<div class="rowhead"><div class="h1">운영 <span>Operations · 오늘을 돌린다</span></div><div style="flex:1"></div><div style="font-size:11px;color:#8b95a5">이벤트 파생 · 4초 폴링 · 마지막 갱신 <span id="clk2"></span></div></div>
+  <div class="grid4">${ct('오늘 전체','Total',t.total,'건')}${ct('완료','Done',t.done,'건 · 계획 대비',' var(--green)')}${ct('대기','Waiting',t.ongoing,'건 · 승인 포함','var(--amber)')}${ct('긴급','Urgent',t.urgent,'건','var(--red)')}</div>
+  <div class="two">
+    <div class="col">
+      <div class="card"><div class="ch"><b>가동 보드</b><small>정비사·로봇 5쌍 · 지금 누가/무엇이 어디서 막혔나</small></div>
+        <table><thead><tr><th>정비사 · 로봇</th><th>현재 작업 Work Order</th><th>단계</th><th>상태</th><th style="text-align:right">경과</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="muted">상태는 작업 이벤트 파생 · 위치 추적 없음</div></div>
+      <div class="card"><div class="ch"><b>승인 대기큐</b><small>지금 내가 처리할 일 (수리 판정)</small></div>${qhtml}
+        <div class="muted">승인·판정은 정비사 앱에서 상신 → 이 큐에 적재됩니다</div></div>
+    </div>
+    <div class="col">
+      <div class="card" style="padding:14px 16px"><div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px"><b style="font-size:13.5px">검사 로봇 현황</b><small style="font-size:10.5px;color:#8b95a5">MOBY + Indy · 5대</small></div>
+        <div style="display:flex;gap:14px;align-items:center">
+          <img src="assets/robot.png" alt="검사 로봇" style="width:86px;height:auto;flex:none;border-radius:8px;background:#f7f9fc">
+          <div style="flex:1;min-width:0"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${fleet}</div>
+            <div style="font-size:10px;color:var(--dim2);margin-top:7px;line-height:1.5">모바일 베이스(MOBY)·협동로봇 암(Indy)·검사 카메라 — 상태는 이벤트 파생</div></div></div></div>
+      <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">AI 운영 제안</b> <small style="font-size:10.5px;color:#8b95a5">제안까지 — 실행은 관리자</small>
+        <div style="border:1px solid #dde4ee;border-radius:9px;padding:11px 12px;margin-top:9px;background:#fafcff">
+          <div style="font-size:12px;font-weight:700;margin-bottom:4px"><span class="badge b-blue" style="font-size:9.5px">R1</span> 병목 — 판정 승인 구간</div>
+          <div style="font-size:11.5px;color:#41506b;line-height:1.5">승인 대기 ${o.approvalWait}건. 승인 처리를 먼저 권장합니다.</div>
+          <div style="font-size:10.5px;color:#8b95a5;margin-top:5px">근거: execution_event 승인 구간 타임스탬프</div>
+          <div style="display:flex;gap:6px;margin-top:9px"><span style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;background:#eef3fb;color:var(--acc);border:1px solid #c9d6ec">참고함</span><span style="padding:4px 12px;border-radius:6px;font-size:11px;color:#8b95a5;border:1px solid #dde4ee">무시</span></div></div></div>
+      <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">활동 이력</b> <small style="font-size:10.5px;color:#8b95a5">방금 무슨 일이</small>
+        <div style="margin-top:8px">${tl||'<div style="color:var(--dim2);font-size:12px;padding:8px 0">활동 없음</div>'}</div></div>
+    </div>
+  </div>`;
+}
+
+function viewQuality(){
+  const d=S.dash, g=d.graph||{}, top=(g.defectTop&&g.defectTop.length?g.defectTop:(d.defectTop||[]));
+  const max=Math.max(1,...top.map(x=>x.n));
+  const topHtml=top.slice(0,5).map((x,i)=>bar(KOR[x.name]||x.name,x.n,max,['#e05243','#d9a514','#5b7fb5','#8fa8cc','#c6cdd8'][i]||'#c6cdd8')).join('');
+  return `<div class="rowhead"><div class="h1">품질 <span>Quality · 새는 곳을 막는다</span></div></div>
+  <div class="half">
+    <div class="card"><div class="ch"><b>재검사·재촬영 발생</b><small>반복 문제 부위</small></div>
+      ${[['WO-2607-115','외판 R2 리벳라인','반사광으로 판독 불가 — 재촬영 2회','재촬영','b-amber'],['WO-2607-110','도어 주변 외판','조치 후 재검사 복귀 1회','재검사','b-blue'],['WO-2606-098','외판 L2 하단','촬영 각도 기준 미달 — 재촬영 1회','재촬영','b-amber']].map(([wo,p,r,k,c])=>`<div style="display:flex;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line2);align-items:center"><span class="mono" style="color:var(--acc);font-size:11px;width:96px">${wo}</span><div style="width:130px;font-weight:500">${p}</div><div style="flex:1;color:var(--dim)">${r}</div><span class="badge ${c}">${k}</span></div>`).join('')}
+      <div class="muted">오늘 재검사 ${d.ops.retake}건 · 증빙 완결률 ${d.hero.quality.now}% (목표 95%)</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">반려·수정 사유 분포</b> <small style="font-size:11px;color:#8b95a5">기록·절차 문제</small>
+      <div style="margin-top:10px">${[['사진 각도·초점 미달','40%'],['조치 기록 미비','33%'],['판정 근거 부족','27%']].map(([l,p])=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:#41506b">${l}</span><span class="mono" style="color:var(--dim)">${p}</span></div><div style="height:8px;background:var(--line2);border-radius:4px"><div style="height:8px;border-radius:4px;background:#5b7fb5;width:${p}"></div></div></div>`).join('')}</div>
+      <div style="font-size:10.5px;color:var(--dim2);margin-top:6px">최근 14일 · 작업·구간 중심 (개인 지목 없음)</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">결함 발견 Top</b> <small style="font-size:11px;color:#8b95a5">지식그래프 전체 누적 · 예방 점검 우선순위</small><div style="margin-top:12px">${topHtml}</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">지식 자산 규모</b> <small style="font-size:11px;color:#8b95a5">Neo4j</small>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${[['누적 사례',g.cases],['검증(환류)',g.verified],['결함 유형',g.defectTypes],['정비 절차',g.procedures]].map(([l,v])=>`<div style="background:#f7f9fc;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2)">${l}</div><div class="mono" style="font-size:17px;font-weight:700;margin-top:2px">${v!=null?Number(v).toLocaleString():'—'}</div></div>`).join('')}</div></div>
+  </div>`;
+}
+
+function viewPeople(){
+  return `<div class="rowhead"><div class="h1">인재 <span>People · 사람을 살핀다</span></div></div>
+  <div style="font-size:11px;color:var(--dim2);margin-bottom:14px">모든 수치는 작업 이벤트 파생 — 위치·생체 추적 없음 · 개인 평가 아님 (팀·구간 중심)</div>
+  <div class="half">
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">숙련도별 부하 분포</b> <small style="font-size:11px;color:#8b95a5">과부하 조정 여부 — 배치는 중앙 시스템</small>
+      <div style="margin-top:12px">${[['숙련','2.0건','75%','#2b5fa8'],['중급','1.0건','38%','#5b7fb5'],['신입','0.5건','19%','#8fa8cc']].map(([g,a,w,c])=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:11px"><div style="width:70px;font-size:12px;color:#41506b">${g}</div><div style="flex:1;height:16px;background:var(--line2);border-radius:5px;position:relative"><div style="height:16px;border-radius:5px;background:${c};width:${w}"></div><div style="position:absolute;left:75%;top:-3px;bottom:-3px;width:1.5px;background:#c0392b;opacity:.45"></div></div><div class="mono" style="width:66px;text-align:right;font-size:11.5px;color:var(--dim)">평균 ${a}</div></div>`).join('')}</div>
+      <div style="font-size:10.5px;color:var(--dim2)">붉은 선 = 권장 상한(1인 2건) · 현재 과부하 없음</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">신입 진행 · 팀 비교</b> <small style="font-size:11px;color:#8b95a5">지원 투입 판단 · 개인 지목 없음</small>
+      <div style="border:1px solid #dde4ee;border-radius:9px;padding:12px 13px;background:#fafcff;margin-top:10px"><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:50%;background:#e8eefb;color:#2b5fa8;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">김</div><div style="flex:1"><div style="font-size:12.5px;font-weight:700">김하늘 <span class="badge b-amber" style="font-size:9px">신입</span></div><div class="mono" style="font-size:10.5px;color:#8b95a5">WO-2607-118 · 동체 하부 외판 점검</div></div><span class="badge b-green">순항 중</span></div>
+        <div style="display:flex;gap:14px;margin-top:11px;padding-top:10px;border-top:1px solid #e8edf5;font-size:11.5px;color:#41506b"><div>연결된 검증사례 <b class="mono">3건</b></div><div>단계 3/12 · 표준 대비 <b>+4분</b></div><div>지원 제안 <b style="color:var(--dim2)">없음</b></div></div></div>
+      <div style="margin-top:12px">${[['A조','3.2h','4%','var(--green)'],['B조','3.5h','6%','var(--amber)']].map(([n,tm,rw,c])=>`<div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #f5f6f9;font-size:12px"><div style="font-weight:700">${n}</div><div><div style="font-size:10px;color:var(--dim2)">평균 완료시간</div><div class="mono" style="font-weight:700;color:#41506b">${tm}</div></div><div><div style="font-size:10px;color:var(--dim2)">재작업률</div><div class="mono" style="font-weight:700;color:${c}">${rw}</div></div></div>`).join('')}</div>
+      <div style="margin-top:12px;padding:11px 12px;background:#f6f9f4;border:1px solid #dbe8d4;border-radius:8px;font-size:11.5px;color:#3d5a34;line-height:1.55"><b>역량 향상</b> — 신입-숙련 작업시간 격차 45%→18% (검증 목표). 검증사례 연결로 신입도 숙련자 수준에 근접.</div></div>
+  </div>`;
+}
+
+function viewKnowledge(){
+  if(!S.cases) return '<p style="color:var(--dim)"><span class="spin"></span> 케이스 불러오는 중…</p>';
+  const all=S.cases.cases||[];
+  let list=all.filter(c=> (S.fSrc==='all'||(S.fSrc==='external')===(c.src==='외부사례')) && (!S.fInc || !c.complete) );
+  const sel=all.find(c=>c.id===S.sel);
+  const vB=v=>({'수리':'b-red','이상 확인':'b-red','재검사':'b-amber','모니터링':'b-amber','정상':'b-green','정상 판정':'b-green','참조':'b-gray'}[v]||'b-gray');
+  const ckLabel={photo:'사진',verdict:'판정',action:'조치',wo:'지시'};
+  const ckBadges=c=>['photo','verdict','action','wo'].map(k=>`<span class="chk ${c.checks&&c.checks[k]?'ok':'no'}">${ckLabel[k]} ${c.checks&&c.checks[k]?'✓':'✕'}</span>`).join(' ');
+  const rows=list.map(c=>`<tr onclick="pick('${c.id}')" style="cursor:pointer;${S.sel===c.id?'background:#eef3fb;':(c.complete?'':'background:#fffaf9;')}">
+    <td style="width:150px"><span class="mono" style="color:var(--acc);font-size:11px">${c.id}</span><div style="font-size:9.5px;color:var(--dim2)">${c.at||''}</div></td>
+    <td>${c.part}<div style="font-size:9.5px;color:var(--dim2)">${c.aircraft}</div></td>
+    <td style="color:#41506b">${c.defect}</td>
+    <td><span class="badge ${vB(c.verdict)}">${c.verdict}</span></td>
+    <td style="min-width:180px"><div style="display:flex;gap:4px;flex-wrap:wrap">${ckBadges(c)}</div></td>
+    <td style="font-size:10px;color:${c.src==='외부사례'?'#8a6d1f':'#8b95a5'};font-weight:500;width:70px">${c.src}</td></tr>`).join('');
+  const detail = sel? `<div class="card" style="border-color:#c9d6ec;position:sticky;top:0">
+      <div class="ch" style="background:#f7fafe"><b class="mono" style="color:var(--acc)">${sel.id}</b><small>${sel.at||''} · ${sel.by}</small><div style="flex:1"></div><span onclick="pick(null)" style="cursor:pointer;color:#8b95a5">✕</span></div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="position:relative;height:150px;border-radius:8px;background:repeating-linear-gradient(45deg,#dfe5ee 0 10px,#e9edf4 10px 20px);display:flex;align-items:center;justify-content:center">
+          <div class="mono" style="font-size:10.5px;color:#7d8aa0;background:rgba(255,255,255,.8);padding:3px 9px;border-radius:4px">evidence — ${sel.part}</div>
+          <div style="position:absolute;left:26%;top:30%;width:80px;height:52px;border:2px solid #e05243;border-radius:4px"></div>
+          <div style="position:absolute;left:26%;top:calc(30% - 16px);font-size:9px;font-weight:700;color:#fff;background:#e05243;padding:1px 6px;border-radius:3px">이상 후보</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+          <div style="background:#f7f9fc;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2);font-weight:700">판정 VERDICT</div><div style="font-size:12.5px;font-weight:700;margin-top:3px">${sel.verdict}</div></div>
+          <div style="background:#f7f9fc;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2);font-weight:700">촬영 출처</div><div style="font-size:12px;margin-top:4px;color:#41506b">${sel.capture}</div></div></div>
+        <div><div style="font-size:10.5px;font-weight:700;color:var(--dim2);margin-bottom:6px">연결 완결성 — 필수 4항목</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">${ckBadges(sel)}</div>
+          ${!sel.complete?'<div style="margin-top:7px;font-size:11px;color:var(--red);background:#fdeceb;border-radius:6px;padding:7px 10px">⚠ 일부 연결이 누락되었습니다 (품질 메뉴 증빙 누락과 동일 건)</div>':''}</div>
+        ${sel.summary?`<div style="background:#fbf7ef;border:1px solid #efe4cc;border-radius:8px;padding:9px 11px;font-size:11.5px;color:#6b5a35;line-height:1.5">📄 ${sel.summary}</div>`:''}
+        <div><div style="font-size:10.5px;font-weight:700;color:var(--dim2);margin-bottom:6px">연결 문서 · 유사 사례</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:11.5px"><a href="#">📄 AMM 관련 점검 절차</a><a href="#">🔗 유사 외부사례 (FAA SDR)</a></div></div>
+      </div></div>`:'';
+  return `<div class="rowhead"><div class="h1">지식 <span>Knowledge · 케이스 브라우저 — 환류를 실물로 확인</span></div><div style="flex:1"></div><div style="font-size:11px;color:#8b95a5">Neo4j 읽기 전용 · GET /api/cases</div></div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+    <select class="sel" onchange="S.fSrc=this.value;S.sel=null;render()">
+      <option value="all"${S.fSrc==='all'?' selected':''}>출처: 전체</option><option value="verified"${S.fSrc==='verified'?' selected':''}>검증사례 (환류)</option><option value="external"${S.fSrc==='external'?' selected':''}>외부사례 (FAA SDR)</option></select>
+    <div class="togg" onclick="S.fInc=!S.fInc;S.sel=null;render()" style="border:1px solid ${S.fInc?'#a13328':'#e3c3c0'};background:${S.fInc?'#a13328':'#fff'};color:${S.fInc?'#fff':'#a13328'}">완결성 미달만 보기</div>
+    <div style="flex:1"></div><div style="font-size:11.5px;color:var(--dim)">${list.length}건 표시 · 검증 ${S.cases.verifiedN} / 외부 ${S.cases.externalN}</div></div>
+  <div style="display:grid;grid-template-columns:1fr ${sel?'360px':'0px'};gap:14px;align-items:start">
+    <div class="card"><table><thead><tr><th>사례 ID · 일시</th><th>기체·부위</th><th>결함</th><th>판정</th><th>연결 완결성</th><th>구분</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${detail}
+  </div>
+  <div style="margin-top:10px;font-size:10.5px;color:var(--dim2)">PoC 라벨: 검증사례는 정비사 승인 시 지식그래프에 환류 축적된 것 · 외부사례는 내부 증빙 미연결(완결성 미달) · 읽기 전용</div>`;
+}
+function pick(id){ S.sel=id; render(); }
+
+function viewReport(){
+  const h=S.dash.hero, g=S.dash.graph||{}, tr=S.dash.trend||{};
+  const deltas=[
+    {label:'작업 리드타임',before:'4.1h',after:'3.2h',goal:'3.0h',badge:'검증목표',note:'착수→승인 구간',prog:'82%'},
+    {label:'재작업률',before:'9%',after:'5%',goal:'4%',badge:'검증목표',note:'재촬영·재검사 포함',prog:'80%'},
+    {label:'승인 대기 시간',before:'32분',after:'14분',goal:'10분',badge:'시뮬',note:'큐 적재→처리',prog:'78%'},
+    {label:'검증사례 축적',before:'0건',after:(g.verified!=null?g.verified:'—')+'건',goal:'—',badge:'실측',note:'Neo4j 환류 누적',prog:'100%'},
+  ];
+  const spark=(arr,color)=>{const w=280,ht=54,pad=6,st=(w-pad*2)/(arr.length-1);const pts=arr.map((v,i)=>`${(pad+i*st).toFixed(1)},${(ht-pad-v/100*(ht-pad*2)).toFixed(1)}`).join(' ');return `<svg viewBox="0 0 ${w} ${ht}" width="100%" height="${ht}"><polyline class="ln" stroke="${color}" points="${pts}"/></svg>`;};
+  return `<div class="rowhead"><div class="h1">효과 리포트 <span>심의·시연 전용 보조 뷰</span></div><span class="badge b-amber">시뮬·목표 데이터 포함</span></div>
+  <div style="font-size:11px;color:var(--dim2);margin-bottom:16px">운영 화면과 분리된 뷰 — 금액·투자회수(ROI) 정보는 어디에도 없습니다 (기대효과 문서의 몫)</div>
+  <div class="grid4">${deltas.map(dl=>`<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:12px;color:#41506b">${dl.label}</b><span class="badge ${dl.badge==='실측'?'b-green':'b-amber'}" style="font-size:9px">${dl.badge}</span></div>
+    <div class="mono" style="display:flex;align-items:baseline;gap:8px;margin-top:12px"><span style="font-size:13px;color:var(--dim2);text-decoration:line-through">${dl.before}</span><span style="color:var(--dim2)">→</span><span style="font-size:22px;font-weight:700">${dl.after}</span></div>
+    <div style="font-size:11px;color:var(--dim);margin-top:6px">목표 ${dl.goal} · ${dl.note}</div>
+    <div style="height:6px;background:var(--line2);border-radius:3px;margin-top:10px"><div style="height:6px;border-radius:3px;background:var(--green);width:${dl.prog}"></div></div></div>`).join('')}</div>
+  <div class="half" style="margin-top:14px">
+    <div class="card" style="padding:14px 16px"><b style="font-size:12px;color:#41506b">리드타임 단축률 추이 (%)</b> <span class="badge b-amber" style="font-size:9px">시뮬</span>${spark(tr.efficiency||[8,11,14,17,20,22],'#2b5fa8')}<div style="font-size:10px;color:var(--dim2)">${(tr.labels||[]).join(' · ')}</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:12px;color:#41506b">정비 품질 완결률 추이 (%)</b> <span class="badge b-amber" style="font-size:9px">시뮬</span>${spark(tr.quality||[78,82,86,88,90,91],'#2e7d4f')}<div style="font-size:10px;color:var(--dim2)">${(tr.labels||[]).join(' · ')}</div></div>
+  </div>
+  <div class="card" style="margin-top:14px;padding:14px 16px;font-size:11.5px;color:var(--dim);line-height:1.6">측정 원칙: 지표는 <b>작업 단계 타임스탬프</b>에서 서버가 집계하고 화면은 표시만 합니다 (제품이 곧 계측기). 검증사례 축적은 정비사 승인 시 <b>Neo4j 지식그래프에 환류</b>된 실측입니다. 전(前) 값은 도입 전 4주 평균, 목표는 검증목표 배지.</div>`;
+}
+
+function render(){
+  if(!S.dash) return;
+  const map={ops:viewOps,quality:viewQuality,people:viewPeople,knowledge:viewKnowledge,report:viewReport};
+  $('#view').innerHTML = (map[S.view]||viewOps)();
+  const c2=document.getElementById('clk2'); if(c2) c2.textContent=$('#clock').textContent;
+}
+// ── 로그인 / 로그아웃 ──
+let _poll=null, _started=false;
+function doLogin(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='flex';
+  if(!_started){ loadOps(); _poll=setInterval(loadOps,4000); _started=true; } else loadOps();
+}
+function doLogout(){
+  if(_poll){ clearInterval(_poll); _poll=null; _started=false; }
+  document.getElementById('app').style.display='none';
+  document.getElementById('login').style.display='flex';
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Enter' && document.getElementById('login').style.display!=='none') doLogin(); });
+</script>
+</body></html>

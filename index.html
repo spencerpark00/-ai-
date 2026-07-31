@@ -37,6 +37,26 @@
   .wocard .row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid #1a212b}
   .wocard .row:last-child{border:none}.wocard .row span{color:var(--dim)}.wocard .row b{color:var(--txt)}
   .wocard .pri{display:inline-block;font-size:11px;background:rgba(248,113,113,.14);color:var(--dang);border-radius:20px;padding:2px 10px;font-weight:600;margin-top:8px}
+  /* 오늘의 작업 목록 */
+  .worklist{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+  .wl{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:13px 14px;cursor:pointer;transition:border-color .15s,transform .1s}
+  .wl:active{transform:scale(.99)} .wl:hover{border-color:var(--line2)}
+  .wl.done{opacity:.5;cursor:default}
+  .wl-risk{font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;white-space:nowrap;flex:none}
+  .wl-risk.red{background:rgba(248,113,113,.15);color:#f87171}
+  .wl-risk.org{background:rgba(251,146,60,.15);color:#fb923c}
+  .wl-risk.yel{background:rgba(250,204,21,.13);color:#eab308}
+  .wl-m{flex:1;min-width:0}
+  .wl-t{font-size:15px;font-weight:700;color:var(--txt)}
+  .wl-s{font-size:12px;color:var(--dim);margin-top:2px}
+  .wl-go{font-size:13px;font-weight:700;color:var(--acc2);flex:none}
+  .wl-done{font-size:12px;font-weight:700;color:var(--dim2);flex:none}
+  .back{font-size:13px;color:var(--dim);cursor:pointer;margin-bottom:10px;display:inline-block}
+  .back:hover{color:var(--txt)}
+  .xfer{background:rgba(56,189,248,.09);border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-size:12.5px;color:var(--dim);text-align:center;margin-top:8px}
+  .xfer b{color:var(--txt)}
+  .toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%) translateY(10px);background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04222b;font-weight:700;font-size:13px;padding:11px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:.3s;z-index:80;box-shadow:0 6px 22px rgba(0,0,0,.45);max-width:88%;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   /* 큰 버튼 */
   .btn{width:100%;padding:15px;border-radius:13px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s}
   .btn:active{transform:scale(.98)}
@@ -114,6 +134,7 @@
   .sheetbox .sh{position:sticky;top:0;display:flex;align-items:center;gap:8px;padding:14px 16px;background:var(--panel);border-bottom:1px solid var(--line);font-weight:700}
   .sheetbox .sh .x{margin-left:auto;cursor:pointer;color:var(--dim);font-size:19px}
   .sheetbody{padding:14px 16px}
+  .sheetask{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--panel);border-top:1px solid var(--line)}
   .qbub{background:var(--acc);color:#04222b;padding:8px 13px;border-radius:12px 12px 4px 12px;font-size:13px;font-weight:600;margin:0 0 10px auto;display:block;width:fit-content;max-width:80%}
   .botmsg{background:var(--panel2);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:11px 14px;font-size:13.5px;line-height:1.65;margin-bottom:14px;max-width:88%;white-space:normal}
   .rchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -162,6 +183,10 @@
 <div class="sheet" id="sheet"><div class="sheetbox">
   <div class="sh">💬 <span id="askQ">질문</span><span class="x" onclick="closeSheet()">✕</span></div>
   <div class="sheetbody" id="sheetBody"></div>
+  <div class="sheetask">
+    <button class="mic" id="mic2" onclick="startVoice('ask2')">🎙️</button>
+    <input class="askin" id="ask2" placeholder="이어서 물어보세요" onkeydown="if(event.key==='Enter')doAsk2()">
+  </div>
 </div></div>
 
 <!-- 로봇 촬영 모달 -->
@@ -180,23 +205,54 @@ const RISK={CRACKED:['red','즉시 조치','구조 안전 직결 — 다음 비�
   DAMAGED:['org','정비 필요','손상 범위 평가 필요'],
   PUNCTURED:['red','즉시 조치','관통 손상'],DENTED:['yel','경미','허용한도 내 가능성'],
   GOUGED:['yel','경미','표면 손상'],WORN:['yel','경미','마모 관찰']};
-let WO=null, STEP=1, FINDING=null;
+let WORKS=[], CURWORK=null, STEP=0, FINDING=null;
+const RISKB={긴급:['red','🔴'],주의:['org','🟠'],정상:['yel','🟢']};
 
-async function boot(){
+async function boot(){ await loadWorks(); showList(); }
+async function loadWorks(){
   try{
-    const r=await fetch('/api/workflow');const j=await r.json();
+    const r=await fetch('/api/works'); WORKS=await r.json();
     document.getElementById('conn').className='conn on';document.getElementById('conn').textContent='● 연결됨';
-    WO=j.wo;
-    if(WO){
-      document.getElementById('woTitle').textContent=WO.purpose||'사각지대 외관검사';
-      document.getElementById('woMeta').innerHTML='기체 <b>'+(WO.aircraft||'EMB ERJ190')+'</b> · 부위 <b>'+(WO.partName||'SKIN')+' '+(WO.loc||'FR73/STR29L')+'</b>';
-    }
   }catch(e){document.getElementById('conn').className='conn off';document.getElementById('conn').textContent='✗ 미연결';}
-  renderProg();renderStage();
+}
+// 첫 화면 = 오늘의 작업 목록
+function showList(){
+  STEP=0; CURWORK=null; FINDING=null; renderProg();
+  document.getElementById('woTitle').textContent='오늘의 작업';
+  const wait=WORKS.filter(w=>w.status!=='완료'), doneN=WORKS.filter(w=>w.status==='완료').length;
+  document.getElementById('woMeta').innerHTML='정비 필요 <b>'+wait.length+'건</b> · 완료 <b>'+doneN+'건</b>';
+  const card=w=>{
+    const rb=RISKB[w.risk]||['yel','🟢'], done=w.status==='완료';
+    return '<div class="wl'+(done?' done':'')+'"'+(done?'':' onclick="pickWork(\''+w.id+'\')"')+'>'+
+      '<span class="wl-risk '+rb[0]+'">'+rb[1]+' '+w.risk+'</span>'+
+      '<div class="wl-m"><div class="wl-t">'+w.part+' '+w.defect+'</div>'+
+      '<div class="wl-s">'+w.ac+' · '+w.area+'</div></div>'+
+      (done?'<span class="wl-done">완료 ✓</span>':'<span class="wl-go">시작 →</span>')+'</div>';
+  };
+  document.getElementById('body').innerHTML=
+    '<div class="stage"><div class="lead">오늘 배정된 <b>정비 작업</b>입니다. 하나씩 처리하세요.</div>'+
+    '<div class="worklist">'+WORKS.map(card).join('')+'</div>'+
+    '<div class="xfer">📤 완료한 작업은 <b>관리자 현황 대시보드로 자동 전달</b>됩니다.</div></div>';
+}
+function pickWork(id){
+  CURWORK=WORKS.find(w=>w.id===id); if(!CURWORK)return;
+  FINDING=null; captureBy='robot';
+  document.getElementById('woTitle').textContent=CURWORK.part+' '+CURWORK.defect+' 검사';
+  document.getElementById('woMeta').innerHTML='기체 <b>'+CURWORK.ac+'</b> · 부위 <b>'+CURWORK.part+' '+CURWORK.area+'</b>';
+  STEP=1; renderProg(); renderStage();
+}
+function backToList(){ FINDING=null; showList(); }
+function toast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
+  t.innerHTML='📤 '+msg;
+  t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove('show');},2800);
 }
 const STEPS=[['1','작업 받기'],['2','로봇 촬영'],['3','AI 결과'],['4','판정'],['5','기록']];
 function renderProg(){
-  document.getElementById('prog').innerHTML=STEPS.map((s,i)=>{
+  const p=document.getElementById('prog');
+  if(STEP<1){ p.innerHTML=''; return; }
+  p.innerHTML=STEPS.map((s,i)=>{
     const n=i+1;const cls=n<STEP?'done':(n===STEP?'now':'');
     const ic=n<STEP?'✓':s[0];
     return '<div class="pstep '+cls+'"><div class="n">'+ic+'</div>'+s[1]+'</div>';
@@ -207,12 +263,14 @@ function go(step){STEP=step;renderProg();renderStage();document.getElementById('
 function renderStage(){
   const b=document.getElementById('body');
   if(STEP===1){
-    b.innerHTML='<div class="stage"><div class="lead">오늘 배정된 <b>검사 작업</b>입니다. 확인하고 시작하세요.</div>'+
-      '<div class="wocard"><div class="t">오늘 작업</div><h2>'+(WO?WO.purpose:'사각지대 외관검사')+'</h2>'+
-      '<div class="row"><span>기체</span><b>'+(WO?(WO.aircraft||'EMB ERJ190'):'EMB ERJ190')+'</b></div>'+
-      '<div class="row"><span>검사 부위</span><b>동체 외판 · '+(WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L')+'</b></div>'+
-      '<div class="row"><span>작업 유형</span><b>사각지대 외관검사</b></div>'+
-      '<span class="pri">우선순위 높음</span></div>'+
+    const w=CURWORK||{};
+    b.innerHTML='<div class="stage"><div class="back" onclick="showList()">← 작업 목록</div>'+
+      '<div class="lead">이 작업을 확인하고 시작하세요.</div>'+
+      '<div class="wocard"><div class="t">작업 '+(w.id||'')+'</div><h2>'+(w.part||'SKIN')+' '+(w.defect||'외관')+' 검사</h2>'+
+      '<div class="row"><span>기체</span><b>'+(w.ac||'EMB ERJ190')+'</b></div>'+
+      '<div class="row"><span>검사 부위</span><b>'+(w.part||'SKIN')+' · '+(w.area||'FR73/STR29L')+'</b></div>'+
+      '<div class="row"><span>예상 위험도</span><b>'+(w.risk||'주의')+'</b></div>'+
+      '<span class="pri">우선순위 '+(w.risk==='긴급'?'긴급':'높음')+'</span></div>'+
       '<button class="btn main" onclick="go(2)">작업 시작 →</button></div>';
   }
   else if(STEP===2){
@@ -225,24 +283,25 @@ function renderStage(){
   }
   else if(STEP===3){ renderResult(); }
   else if(STEP===5){
-    const f=FINDING||{};
+    const f=FINDING||{}, w=CURWORK||{};
     b.innerHTML='<div class="stage"><div class="done-c"><div class="ic">✅</div><h2>작업 기록 완료</h2>'+
-      '<p>검사 결과가 자동으로 저장됐어요.<br>따로 문서를 작성할 필요가 없습니다.</p></div>'+
+      '<p>검사 결과가 자동 저장되고<br><b>관리자 대시보드에 실시간 반영</b>됐어요.</p></div>'+
       '<div class="recbox">'+
-      '<div class="row"><span>검사 위치</span><b>'+(WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L')+'</b></div>'+
+      '<div class="row"><span>작업</span><b>'+(w.id||'')+' · '+(w.part||'SKIN')+' '+(w.area||'FR73/STR29L')+'</b></div>'+
       '<div class="row"><span>촬영 방법</span><b>'+(captureBy==='direct'?'📷 직접':'🤖 로봇')+' <span class="auto">기록됨</span></b></div>'+
-      '<div class="row"><span>발견</span><b>'+(f.kor||'부식')+' · '+(f.conf||'0.87')+'</b></div>'+
+      '<div class="row"><span>발견</span><b>'+(f.kor||w.defect||'부식')+' · '+(f.conf||'0.87')+'</b></div>'+
       '<div class="row"><span>정비사 판정</span><b style="color:'+(f.jcol||'var(--dang)')+'">'+(f.judge||'수리')+'</b></div>'+
       '<div class="row"><span>작업 기록</span><b class="auto">자동 저장 ✓</b></div></div>'+
       (f.judge==='수리'?'<p style="font-size:12px;color:var(--dim);text-align:center;line-height:1.6">→ 승인 시 이 사례가 <b style="color:var(--txt)">다음 검사에 재활용</b>됩니다.</p>':'')+
-      '<button class="btn ghost" onclick="restart()" style="margin-top:16px">새 작업 시작</button></div>';
+      '<div class="xfer">📤 이 결과가 <b>관리자 현황 대시보드로 전달</b>됐어요.</div>'+
+      '<button class="btn main" onclick="backToList()" style="margin-top:12px">← 작업 목록으로</button></div>';
   }
 }
 function renderResult(){
   const f=FINDING||{cond:'CORRODED',conf:'0.87'};
   const rk=RISK[f.cond]||['org','정비 필요',''];
   const kor=KOR[f.cond]||'부식';f.kor=kor;
-  const loc=WO?(WO.loc||'FR73 / STR29L'):'FR73 / STR29L';
+  const loc=(CURWORK&&CURWORK.area)||'FR73 / STR29L';
   const capLead = captureBy==='direct' ? '촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>' : '로봇이 촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>';
   document.getElementById('body').innerHTML='<div class="stage">'+
     '<div class="lead">'+capLead+'<br>결과를 확인하고 판정하세요.</div>'+
@@ -270,7 +329,7 @@ function renderResult(){
 async function loadDrill(){
   // 과거 사례 + 절차를 지식그래프에서
   try{
-    const r=await fetch('/api/query?q=SKIN');const j=await r.json();
+    const r=await fetch('/api/query?q='+encodeURIComponent((CURWORK&&CURWORK.part)||'SKIN'));const j=await r.json();
     const d=j.data||{};const cases=(d.cases||[]).filter(c=>c.sum).slice(0,2);
     const procs=(j.procedures||[]).slice(0,2);
     document.getElementById('d1').innerHTML=(cases.length?cases.map(c=>'<div class="ev"><div class="eh"><span class="ac">'+(KOR[c.cond]||c.cond)+' 과거 사례</span><span class="lc">'+(c.fs?'FR'+c.fs:'')+(c.str?' / STR'+c.str:'')+'</span></div><div class="tx">"'+(c.sum||'').slice(0,110)+'…"</div><div class="sc">📄 실제 정비 보고 · '+(c.ac||'-')+'</div></div>').join(''):'<p style="font-size:11px;color:var(--dim2)">유사 사례 조회 중…</p>')+
@@ -291,7 +350,7 @@ function openRobot(by){
   captureBy = by || 'robot';
   const m=document.getElementById('modal');m.classList.add('show');
   document.querySelector('#modal .sh').firstChild.textContent = captureBy==='direct' ? '📷 직접 촬영 ' : '🤖 로봇 촬영 ';
-  document.getElementById('mLoc').textContent=WO?(WO.loc||'FR73/STR29L'):'FR73/STR29L';
+  document.getElementById('mLoc').textContent=(CURWORK&&CURWORK.area)||'FR73/STR29L';
   const msg = captureBy==='direct' ? '촬영·업로드 중…' : '로봇 이동·조명·촬영 중…';
   document.getElementById('mBody').innerHTML='<div style="color:var(--dim2);font-size:12.5px;padding:12px"><span class="spin"></span> '+msg+'</div>';
   fetch('/api/robot').then(r=>r.json()).then(j=>{
@@ -304,27 +363,54 @@ function openRobot(by){
     },1500);
   }).catch(()=>{setTimeout(()=>{document.getElementById('mBody').innerHTML='<button class="btn main" onclick="captured(0.87)">AI 결과 보기 →</button>';},1200);});
 }
-function captured(conf){FINDING={cond:'CORRODED',conf:conf};closeModal();go(3);}
+const DEFC={부식:'CORRODED',균열:'CRACKED',찍힘:'DENTED',마모:'WORN',흠집:'GOUGED',손상:'DAMAGED'};
+function captured(conf){const c=(CURWORK&&DEFC[CURWORK.defect])||'CORRODED';FINDING={cond:c,conf:conf};closeModal();go(3);}
 function closeModal(){document.getElementById('modal').classList.remove('show');}
-function judge(v,col){FINDING=FINDING||{};FINDING.judge=v;FINDING.jcol=col;go(5);}
-function restart(){FINDING=null;go(1);}
+async function judge(v,col){
+  FINDING=FINDING||{}; FINDING.judge=v; FINDING.jcol=col;
+  // 정비사 판정 → 서버로 전송 → 관리자 대시보드 실시간 반영
+  if(CURWORK){
+    const verdict = v==='정상'?'정상':(v==='재검사'?'재검사':'수리');
+    try{
+      await fetch('/api/works/complete',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:CURWORK.id, capturedBy:captureBy, verdict})});
+      CURWORK.status='완료';
+    }catch(e){}
+    await loadWorks();
+    toast('오늘 정비 결과가 관리자 현황 대시보드로 전달됐습니다');
+  }
+  go(5);
+}
+function restart(){ backToList(); }
 
 // ── 질문(보조) ──
 let recog=null,recActive=false;
-function startVoice(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;const mic=document.getElementById('mic');
-  if(!SR){document.getElementById('ask').placeholder='음성 미지원 — Chrome/Edge 또는 텍스트 입력';return;}
+function startVoice(box){
+  box = box || 'ask';                                   // 'ask'(메인) 또는 'ask2'(시트)
+  const micId = box==='ask2' ? 'mic2' : 'mic';
+  const submit = box==='ask2' ? doAsk2 : doAsk;
+  const ph = box==='ask2' ? '이어서 물어보세요' : '검사 중 궁금한 걸 물어보세요';
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const mic=document.getElementById(micId); const inp=document.getElementById(box);
+  if(!SR){inp.placeholder='음성 미지원 — Chrome/Edge 또는 텍스트 입력';return;}
   if(recActive){recog&&recog.stop();return;}
   recog=new SR();recog.lang='ko-KR';recog.interimResults=true;recActive=true;mic.classList.add('rec');
-  document.getElementById('ask').placeholder='🎙️ 듣고 있어요…';
+  inp.placeholder='🎙️ 듣고 있어요…';
   recog.onresult=function(ev){let t='';for(let i=ev.resultIndex;i<ev.results.length;i++)t+=ev.results[i][0].transcript;
-    document.getElementById('ask').value=t;
-    if(ev.results[ev.results.length-1].isFinal){recog.stop();setTimeout(doAsk,200);}};
+    inp.value=t;
+    if(ev.results[ev.results.length-1].isFinal){recog.stop();setTimeout(submit,200);}};
   recog.onerror=function(){recActive=false;mic.classList.remove('rec');};
-  recog.onend=function(){recActive=false;mic.classList.remove('rec');document.getElementById('ask').placeholder='검사 중 궁금한 걸 물어보세요';};
+  recog.onend=function(){recActive=false;mic.classList.remove('rec');inp.placeholder=ph;};
   recog.start();
 }
+// 시트 안 입력창에서 이어질문
+function doAsk2(){
+  const inp=document.getElementById('ask2');const term=inp.value.trim();if(!term)return;inp.value='';
+  if(/찍어|촬영|스캔|카메라/.test(term)){openRobot();return;}
+  askServer(term);
+}
 let lastPart='SKIN';
+let chatHist=[];   // 최근 대화 [{role:'user'|'bot', text}] — 서버로 보내 맥락 유지
 async function doAsk(){
   const inp=document.getElementById('ask');const term=inp.value.trim();if(!term)return;inp.value='';
   if(/찍어|촬영|스캔|카메라/.test(term)){openRobot();return;}
@@ -333,6 +419,7 @@ async function doAsk(){
 async function askServer(term){
   const sheet=document.getElementById('sheet');sheet.classList.add('show');
   document.getElementById('askQ').textContent='작업 도우미';
+  setTimeout(function(){var a=document.getElementById('ask2');if(a)a.focus();},60);
   const body=document.getElementById('sheetBody');
   // 기존 대화 유지하며 질문 추가 (대화형)
   const prev=body.getAttribute('data-init')==='1'?body.innerHTML:'';
@@ -341,9 +428,13 @@ async function askServer(term){
     '<div class="botmsg" id="pending"><span class="spin"></span> 확인 중…</div>';
   body.scrollTop=body.scrollHeight;
   try{
-    const r=await fetch('/api/ask?q='+encodeURIComponent(term));const j=await r.json();
+    const r=await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({q:term, history:chatHist})});
+    const j=await r.json(); const ans=j.answer||{};
     lastPart=j.part||lastPart;
-    document.getElementById('pending').outerHTML=renderBot(j.answer);
+    document.getElementById('pending').outerHTML=renderBot(ans);
+    chatHist.push({role:'user',text:term}); chatHist.push({role:'bot',text:ans.text||''});
+    if(chatHist.length>12) chatHist=chatHist.slice(-12);   // 최근 6턴만 유지
   }catch(e){ document.getElementById('pending').outerHTML='<div class="botmsg">조회 실패</div>'; }
   body.scrollTop=body.scrollHeight;
 }
@@ -353,7 +444,7 @@ function renderBot(a){
   const chips=(a.chips||[]).map(c=>'<span class="rchip" onclick="askServer(\''+c+' '+lastPart+'\')">'+c+'</span>').join('');
   return '<div class="botmsg">'+text+(chips?'<div class="rchips">'+chips+'</div>':'')+'</div>';
 }
-function closeSheet(){const b=document.getElementById('sheetBody');b.innerHTML='';b.removeAttribute('data-init');document.getElementById('sheet').classList.remove('show');}
+function closeSheet(){const b=document.getElementById('sheetBody');b.innerHTML='';b.removeAttribute('data-init');chatHist=[];document.getElementById('sheet').classList.remove('show');}
 boot();
 </script>
 </body></html>
