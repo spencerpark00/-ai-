@@ -83,7 +83,7 @@
   .brow .bl{color:#41506b;flex:1} .brow .bv{font-weight:700;font-family:'IBM Plex Mono';color:var(--ink)}
   .bk{font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px}
   .bk-실측{background:var(--greenbg);color:var(--green)} .bk-추정{background:var(--amberbg);color:var(--amber)} .bk-Neo4j{background:var(--bluebg);color:var(--blue)}
-  .conf{height:8px;background:var(--line2);border-radius:5px;overflow:hidden;margin-top:6px} .conf i{display:block;height:100%;background:linear-gradient(90deg,#2b5fa8,#4a90d9);border-radius:5px}
+  .confbar{height:8px;background:var(--line2);border-radius:5px;overflow:hidden;margin-top:6px} .confbar i{display:block;height:100%;background:linear-gradient(90deg,#2b5fa8,#4a90d9);border-radius:5px}
   .dw-acts{display:flex;gap:8px;margin-top:20px}
   .dw-acts button{flex:1;height:40px;border-radius:8px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;border:1px solid var(--line)}
   .dw-acts .primary{background:var(--navy);color:#fff;border-color:var(--navy)} .dw-acts .ghost{background:#fff;color:#41506b}
@@ -189,7 +189,7 @@ function openSug(id){
       <div class="dw-lbl">연결 근거 EVIDENCE</div>
       <div style="font-size:11.5px;color:#41506b;line-height:1.55;background:#f7f9fc;border:1px solid var(--line2);border-radius:8px;padding:10px 12px">🔗 ${s.evidence}</div>
       <div class="dw-lbl">신뢰도 CONFIDENCE <span style="color:var(--ink);font-family:'IBM Plex Mono'">${s.confidence}%</span></div>
-      <div class="conf"><i style="width:${s.confidence}%"></i></div>
+      <div class="confbar"><i style="width:${s.confidence}%"></i></div>
       <div style="font-size:10px;color:var(--dim2);margin-top:6px">실측=라이브 집계 · Neo4j=지식그래프 조회 · 추정=휴리스틱(PoC 실측으로 검증)</div>
       <div class="dw-acts"><button class="primary" onclick="sugAck('반영')">우선 처리 반영</button><button class="ghost" onclick="sugAck('참고')">참고함</button><button class="ghost" onclick="sugAck('무시')">무시</button></div>
       <div style="text-align:center;font-size:10px;color:var(--dim2);margin-top:10px">AI는 제안까지 — 실행·승인은 관리자 (자동 실행 없음)</div>
