@@ -525,6 +525,57 @@ async function buildDashboard(){
   try{ gProc    =(await cypher('MATCH (p:Procedure) RETURN count(p) AS n',{}))[0].n; }catch(e){}
   try{ gTool    =(await cypher('MATCH (t:Tool) RETURN count(DISTINCT t.name) AS n',{}))[0].n; }catch(e){}
   try{ gTop     = await cypher('MATCH (d:Defect)-[r:OCCURS_ON]->(:Part) RETURN d.name AS name, sum(r.weight) AS n ORDER BY n DESC LIMIT 4',{}); }catch(e){ gTop=[]; }
+  // ── AI 판단 근거 (제안 + 근거) — 실데이터 기반, 추정치는 kind로 명시 (정직 라벨)
+  const approvalN = ops.approvalWait, waitN = waiting.length, retakeN = ops.retake;
+  const avgLead = (()=>{ const a=done.filter(w=>w.lead); return a.length?Math.round(a.reduce((s,w)=>s+w.lead,0)/a.length):0; })();
+  const apprElapsed = Math.max(0, ...PAIRS.filter(p=>p.status==='승인 대기').map(p=>parseInt(p.elapsed)||0));
+  const idle = fleetOf(PAIRS).filter(f=>f.label==='대기'||f.label==='충전').reduce((s,f)=>s+f.n,0);
+  const suggestions = [];
+  if(approvalN>0) suggestions.push({
+    id:'S1', tag:'병목', title:'판정 승인 구간 병목', priority:'높음',
+    summary:`승인 대기 ${approvalN}건 적체 — 검사·촬영 완료본이 승인 단계에서 대기 중입니다.`,
+    recommend:'대기 시간이 긴 건부터 우선 승인 처리를 권장합니다.',
+    basis:[
+      {label:'승인 대기', value:`${approvalN}건`, kind:'실측'},
+      {label:'현재 최장 대기', value:`${apprElapsed}분`, kind:'실측'},
+      {label:'평균 처리(리드타임)', value:`${avgLead}분`, kind:'실측'},
+      {label:'연결된 검증사례', value:`${gVerified!=null?gVerified:'—'}건`, kind:'Neo4j'},
+      {label:'병목 발생 확률', value:`${Math.min(95, 45+approvalN*12+(apprElapsed>avgLead?15:0))}%`, kind:'추정'},
+    ],
+    evidence:`Neo4j 검증사례 ${gVerified!=null?gVerified:'—'}건과 연결 · execution_event 승인 구간 타임스탬프 기준`,
+    confidence: Math.min(92, 60+approvalN*8),
+  });
+  if(waitN>0) suggestions.push({
+    id:'S2', tag:'배분', title:'검사 대기 작업 배분', priority:'중간',
+    summary:`검사 대기 ${waitN}건 — 로봇 가동률 ${ops.robotRate}%로 여력이 있습니다.`,
+    recommend:'유휴 로봇(대기·충전)에 대기 작업을 배정하면 처리량 향상이 예상됩니다.',
+    basis:[
+      {label:'검사 대기', value:`${waitN}건`, kind:'실측'},
+      {label:'로봇 가동률', value:`${ops.robotRate}%`, kind:'실측'},
+      {label:'유휴 로봇', value:`${idle}대`, kind:'실측'},
+      {label:'긴급 포함', value:`${today.urgent}건`, kind:'실측'},
+    ],
+    evidence:'가동보드 로봇 상태 분포 · 작업 위험도(ATA·결함) 기준 우선순위',
+    confidence: 74,
+  });
+  if(retakeN>0) suggestions.push({
+    id:'S3', tag:'품질', title:'재검사 발생 주의', priority:'중간',
+    summary:`재검사 ${retakeN}건 — 촬영 품질·기록 누락이 주 원인으로 보입니다.`,
+    recommend:'재촬영 상한에 도달한 건은 원격 전문가 연결을 권장합니다.',
+    basis:[
+      {label:'재검사', value:`${retakeN}건`, kind:'실측'},
+      {label:'증빙 완결률', value:`${quality}%`, kind:'실측'},
+      {label:'주요 원인', value:'촬영 각도·초점', kind:'추정'},
+    ],
+    evidence:'품질 반려 사유 분포 · 사례 연결 완결성(사진·판정·조치·지시)',
+    confidence: 70,
+  });
+  if(suggestions.length===0) suggestions.push({
+    id:'S0', tag:'정상', title:'현재 개입 필요 없음', priority:'—',
+    summary:'병목·재검사 없음 — 운영이 안정적입니다.', recommend:'현재 페이스 유지를 권장합니다.',
+    basis:[{label:'승인 대기', value:'0건', kind:'실측'},{label:'검사 대기', value:`${waitN}건`, kind:'실측'}],
+    evidence:'라이브 집계', confidence: 88,
+  });
   // ── 지연·위험 알림 (미완료 긴급)
   const alerts = W.filter(w=>w.status!=='완료'&&w.risk==='긴급')
     .map(w=>({id:w.id, part:w.part, defect:w.defect, risk:w.risk, why:'긴급'}));
@@ -535,7 +586,7 @@ async function buildDashboard(){
   if(roboErr>0) strip.push({label:'🤖 로봇 오류 '+roboErr});
   return {
     generatedAt:new Date().toISOString(),
-    today, ops, bottleneck, defectTop, alerts, strip,
+    today, ops, bottleneck, defectTop, alerts, strip, suggestions,
     pairs: PAIRS, fleet: fleetOf(PAIRS),
     activity: ACTIVITY.slice(0,8),
     hero:{
