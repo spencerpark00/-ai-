@@ -459,34 +459,41 @@ const WORKS_SEED = JSON.parse(JSON.stringify(WORKS));
 //   (가짜 자동진행 없음 — 화면과 실제가 절대 어긋나지 않게)
 const STEP_NAMES = ['작업 배정','로봇 촬영','AI 이상후보','정비사 판정','작업 기록'];
 const STEP_ROBOT = ['이동중','촬영중','대기','대기','대기'];
-let LIVE = {};                 // techId -> {wo,task,step,workStart,robot,prog} — 진행 중일 때만 존재
+let LIVE = {};                 // techId -> 세션 라이브 상태 (로그인~로그아웃 동안 유지)
+const IDLE_MS = 600000;        // 무보고 10분이면 세션 만료 (탭 닫힘 대비 안전장치)
 function clearLive(){ LIVE = {}; }
-// 실제 정비사 단계 진행 보고 → 해당 pair 실시간 갱신
+function clearLiveFor(id){ if(id) delete LIVE[id]; }
+// 실제 정비사 단계 진행 보고 → 해당 pair 실시간 갱신 (세션 유지: 작업 사이에도 '작업중')
 function reportProgress(techId, workId, step){
   const w=WORKS.find(x=>x.id===workId);
   const id=techId||(w&&w.owner); if(!id||!techOf(id)) return;
-  const now=Date.now(); let L=LIVE[id];
-  if(!L || (step||1)<=1){ L=LIVE[id]={ workStart:now }; }
+  const now=Date.now(); let L=LIVE[id]; if(!L) L=LIVE[id]={ workStart:now };
+  const s=Math.max(1,Math.min(4,step||1));
   L.wo = workId?('WO·'+workId):'—';
   L.task = w ? (w.ac+' '+w.part+' '+w.area+' — '+w.defect+' 점검') : '점검';
-  L.step = Math.max(1,Math.min(4,step||1));   // 진행 중 1~4 (완료는 completeWork에서 LIVE 해제)
-  if(!L.workStart) L.workStart=now;
-  L.robot=STEP_ROBOT[L.step-1]; L.prog=Math.round(L.step/5*100);
+  L.stepNum=s; L.stepLabel=s+'/5 '+STEP_NAMES[s-1];
+  L.robot=STEP_ROBOT[s-1]; L.prog=Math.round(s/5*100); L.status='작업중';
+  if(!L.workStart) L.workStart=now; L.lastActive=now;
 }
 function fmtMin(ms){ return Math.max(0,Math.round(ms/60000))+'분'; }
-// 가동보드 pair = 진행 중이면 LIVE, 아니면 실제 배정 상태(대기/유휴)
+// 가동보드 pair = 로그인 근무 중이면 세션 상태('작업중' 유지), 아니면 실제 배정 상태(대기/유휴)
 function livePairs(){
   const now=Date.now();
   return TECHS.map(t=>{
     const L=LIVE[t.id];
     const mine=WORKS.filter(w=>w.owner===t.id);
     const waitN=mine.filter(w=>w.status!=='완료').length, doneN=mine.length-waitN;
-    if(L){   // 실제 진행 중인 정비사
-      return { tech:t.id, grade:t.grade, robot:t.robot, rst:L.robot,
-        wo:L.wo, task:L.task, step:L.step+'/5 '+STEP_NAMES[L.step-1], prog:L.prog,
-        status:'작업중', elapsed:fmtMin(now-(L.workStart||now)),
-        parallel:(L.step===2)?'로봇 촬영 중 — 정비사 인접부 육안점검 병행':null, real:true };
+    if(L && now-(L.lastActive||0) < IDLE_MS){   // 로그인·근무 중인 세션
+      if(waitN===0)   // 배정 작업 다 끝냄
+        return { tech:t.id, grade:t.grade, robot:t.robot, rst:'충전중', wo:'—',
+          task:'배정 작업 모두 완료 · 유휴 (완료 '+doneN+'건)', step:'완료', prog:100, status:'완료',
+          elapsed:fmtMin(now-(L.workStart||now)), parallel:null, real:true };
+      return { tech:t.id, grade:t.grade, robot:t.robot, rst:L.robot||'대기',
+        wo:L.wo||'—', task:L.task||'점검', step:L.stepLabel||'—', prog:L.prog||0, status:L.status||'작업중',
+        elapsed:fmtMin(now-(L.workStart||now)),
+        parallel:(L.stepNum===2)?'로봇 촬영 중 — 정비사 인접부 육안점검 병행':null, real:true };
     }
+    if(L) delete LIVE[t.id];   // 세션 만료 → 정리
     const idle = waitN>0;
     return { tech:t.id, grade:t.grade, robot:t.robot, rst: idle?'대기':'충전중',
       wo:'—', task: idle?('배정 대기 '+waitN+'건 · 완료 '+doneN+'건'):('배정 작업 완료 · 유휴 (완료 '+doneN+'건)'),
@@ -546,8 +553,13 @@ async function completeWork(id, capturedBy, verdict){
       console.log('  ↻ 환류 축적: '+w.id+' ('+w.part+' '+w.defect+') → Neo4j VerifiedCase');
     }catch(e){ console.log('  ! 환류 실패: '+e.message); }
   }
-  // 가동보드 라이브 정리 — 완료되면 진행상태 해제 → 실제 배정 상태(대기 N건/유휴)로 자연 복귀
-  if(w.owner) delete LIVE[w.owner];
+  // 가동보드 — 완료 후에도 근무 세션 유지 ('다음 작업 준비'). 로그아웃/유휴 시 대기로 복귀
+  if(w.owner && techOf(w.owner)){
+    let L=LIVE[w.owner]; if(!L) L=LIVE[w.owner]={ workStart:Date.now() };
+    L.wo='—'; L.task='직전 작업 완료('+w.verdict+') · 다음 작업 준비';
+    L.stepNum=0; L.stepLabel='다음 작업 준비'; L.robot='대기'; L.prog=100; L.status='작업중';
+    L.lastActive=Date.now();
+  }
   return w;
 }
 
@@ -748,6 +760,11 @@ const server = http.createServer(async (req,res)=>{
   if(u.pathname === '/api/works/progress' && req.method==='POST'){
     try{ const p=JSON.parse(await readBody(req)||'{}'); reportProgress(p.tech, p.id, p.step||1);
       return json(res, {ok:true}); }catch(e){ return json(res, {error:e.message}, 500); }
+  }
+  // API: 정비사 로그아웃 → 가동보드 세션 정리 (그 pair는 대기로 복귀)
+  if(u.pathname === '/api/works/logout' && req.method==='POST'){
+    try{ const p=JSON.parse(await readBody(req)||'{}'); clearLiveFor(p.tech); }catch(e){}
+    return json(res, {ok:true});
   }
   // API: 정비사 판정 → 작업 완료 (관리자 대시보드에 실시간 반영 + 이력 기록)
   if(u.pathname === '/api/works/complete' && req.method==='POST'){

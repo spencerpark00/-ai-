@@ -201,7 +201,11 @@
 function isTech(){ try{ return sessionStorage.getItem('mroRole')==='tech'; }catch(e){ return false; } }
 const TECHID = (function(){ try{ return sessionStorage.getItem('mroTech')||''; }catch(e){ return ''; } })();
 const TECHMAP = {'박재현':'MR-01','이수민':'MR-02','최동욱':'MR-03','김하늘':'MR-04','한지원':'MR-05'};
-function doLogout(){ try{ sessionStorage.removeItem('mroRole'); sessionStorage.removeItem('mroTech'); }catch(e){} location.replace('/'); }
+function doLogout(){
+  try{ if(TECHID) fetch('/api/works/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tech:TECHID}),keepalive:true}); }catch(e){}
+  try{ sessionStorage.removeItem('mroRole'); sessionStorage.removeItem('mroTech'); }catch(e){}
+  location.replace('/');
+}
 // 단계 진행 → 서버 보고 → 관리자 가동보드 실시간 반영
 function reportProgress(step){
   if(!TECHID || !CURWORK) return;
