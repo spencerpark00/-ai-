@@ -209,6 +209,12 @@ async function sugAck(kind){
   toast('활동 이력에 기록했습니다 — '+label);
 }
 function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600); }
+async function toggleAuto(){
+  const cur = S.dash && S.dash.autoDemo;
+  try{ await fetch('/api/demo/auto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:!cur})}); }catch(e){}
+  await loadOps();
+  toast(!cur ? '데모 자동재생 ON — 미로그인 정비사 자동 진행' : '데모 자동재생 OFF — 실제 상태만');
+}
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSug(); });
 
 function viewOps(){
@@ -235,7 +241,8 @@ function viewOps(){
   <div class="grid4">${ct('오늘 전체','Total',t.total,'건')}${ct('완료','Done',t.done,'건 · 계획 대비',' var(--green)')}${ct('대기','Waiting',t.ongoing,'건 · 승인 포함','var(--amber)')}${ct('긴급','Urgent',t.urgent,'건','var(--red)')}</div>
   <div class="two">
     <div class="col">
-      <div class="card"><div class="ch"><b>가동 보드</b><small>정비사·로봇 5쌍 · 지금 누가/무엇이 어디서 막혔나</small></div>
+      <div class="card"><div class="ch"><b>가동 보드</b><small>정비사·로봇 5쌍 · 지금 누가/무엇이 어디서 막혔나</small>
+        <span onclick="toggleAuto()" title="혼자 시연용 — 미로그인 정비사 자동 진행" style="margin-left:auto;cursor:pointer;font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:14px;border:1px solid ${d.autoDemo?'#bfe3cd':'var(--line)'};background:${d.autoDemo?'var(--greenbg)':'#fff'};color:${d.autoDemo?'var(--green)':'var(--dim)'}">데모 자동재생 ${d.autoDemo?'● ON':'○ OFF'}</span></div>
         <table><thead><tr><th>정비사 · 로봇</th><th>현재 작업 Work Order</th><th>단계</th><th>상태</th><th style="text-align:right">경과</th></tr></thead><tbody>${rows}</tbody></table>
         <div class="muted">상태는 작업 이벤트 파생 · 위치 추적 없음</div></div>
       <div class="card"><div class="ch"><b>승인 대기큐</b><small>지금 내가 처리할 일 (수리 판정)</small></div>${qhtml}

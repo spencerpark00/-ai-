@@ -507,6 +507,46 @@ function liveFleet(pairs){
   const dot={촬영:'#2b5fa8',이동:'#2e7d4f',대기:'#9aa3b2',충전:'#d9a514',오류:'#e05243'};
   return Object.entries(m).filter(([k,v])=>v>0||k!=='오류').map(([label,n])=>({label,n,dot:dot[label]}));
 }
+
+// ── 데모 자동재생 (혼자 시연용) — 로그인 안 한 정비사가 실제 배정 작업을 자동 진행·완료 ──
+//   실제 작업을 처리하므로 화면과 일치 유지. 로그인해 작업 중인 정비사는 절대 건드리지 않음.
+//   환류(Neo4j)는 쓰지 않음 — 검증 지식은 사람 승인만 (HITL 유지).
+let AUTO = false;
+function autoComplete(id){
+  const w=WORKS.find(x=>x.id===id); if(!w||w.status==='완료') return;
+  w.status='완료'; w.robot=true;
+  w.verdict = w.defect==='이상없음' ? '정상' : (w.risk==='긴급' ? '수리' : '정상');
+  w.retake=false; w.quality=true; w.lead=Math.round(w.base*0.8); w.at=new Date().toISOString();
+  ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:w.verdict, by:'로봇', text:actText(w)});
+  if(ACTIVITY.length>60) ACTIVITY.length=60;
+}
+function autoTick(){
+  if(!AUTO) return;
+  const now=Date.now();
+  TECHS.forEach(t=>{
+    const L=LIVE[t.id];
+    if(L && !L.auto && now-(L.lastActive||0) < IDLE_MS) return;   // 사람이 실제 작업 중 → 건너뜀
+    const waits=WORKS.filter(w=>w.owner===t.id && w.status!=='완료');
+    if(!waits.length){ if(L&&L.auto) delete LIVE[t.id]; return; } // 배정 작업 다 함 → 유휴
+    let A=(L&&L.auto)?L:(LIVE[t.id]={auto:true, curId:waits[0].id, step:TECHS.indexOf(t)%5, workStart:now}); // 정비사별 시작 단계 stagger
+    if(A.charging){   // 완료 직후 충전 페이즈 (로봇 현황에 '충전중' 표시)
+      A.charging=false; A.robot='충전중'; A.status='충전/점검'; A.wo='—';
+      A.task='로봇 충전·점검 · 다음 작업 준비'; A.stepLabel='충전'; A.stepNum=0; A.prog=0; A.lastActive=now; return;
+    }
+    A.step=(A.step||0)+1;
+    if(A.step>5 || !WORKS.find(w=>w.id===A.curId && w.status!=='완료')){
+      if(A.curId) autoComplete(A.curId);                          // 실제 완료 처리
+      const next=WORKS.find(w=>w.owner===t.id && w.status!=='완료');
+      if(!next){ delete LIVE[t.id]; return; }
+      A.curId=next.id; A.step=0; A.workStart=now; A.charging=true; A.lastActive=now; return; // 다음 틱 충전
+    }
+    const w=WORKS.find(x=>x.id===A.curId), s=Math.max(1,Math.min(5,A.step));
+    A.wo='WO·'+A.curId; A.task=w?(w.ac+' '+w.part+' '+w.area+' — '+w.defect+' 점검'):'점검';
+    A.stepNum=s; A.stepLabel=s+'/5 '+STEP_NAMES[s-1]; A.robot=STEP_ROBOT[s-1];
+    A.prog=Math.round(s/5*100); A.status='작업중'; A.lastActive=now;
+  });
+}
+setInterval(autoTick, 3000);   // 3초마다 한 단계씩
 function actText(w){ return w.part+' '+w.defect+' 검사 완료 → '+w.verdict+' ('+(w.robot?'로봇':'직접')+' 촬영)'; }
 function deriveActivity(works){
   return works.filter(w=>w.status==='완료')
@@ -658,7 +698,7 @@ async function buildDashboard(){
   if(roboErr>0) strip.push({label:'🤖 로봇 오류 '+roboErr});
   return {
     generatedAt:new Date().toISOString(),
-    today, ops, bottleneck, defectTop, alerts, strip, suggestions,
+    today, ops, bottleneck, defectTop, alerts, strip, suggestions, autoDemo:AUTO,
     pairs, fleet: liveFleet(pairs),
     activity: ACTIVITY.slice(0,8),
     hero:{
@@ -765,6 +805,13 @@ const server = http.createServer(async (req,res)=>{
   if(u.pathname === '/api/works/logout' && req.method==='POST'){
     try{ const p=JSON.parse(await readBody(req)||'{}'); clearLiveFor(p.tech); }catch(e){}
     return json(res, {ok:true});
+  }
+  // API: 데모 자동재생 on/off (혼자 시연용)
+  if(u.pathname === '/api/demo/auto' && req.method==='POST'){
+    try{ const p=JSON.parse(await readBody(req)||'{}'); AUTO=!!p.on;
+      if(!AUTO) Object.keys(LIVE).forEach(k=>{ if(LIVE[k]&&LIVE[k].auto) delete LIVE[k]; }); // 끄면 자동 세션 정리
+    }catch(e){}
+    return json(res, {ok:true, auto:AUTO});
   }
   // API: 정비사 판정 → 작업 완료 (관리자 대시보드에 실시간 반영 + 이력 기록)
   if(u.pathname === '/api/works/complete' && req.method==='POST'){
