@@ -441,12 +441,14 @@ function seedWorks(){
   TECHS.forEach((t,ti)=>{
     for(let k=0;k<8;k++){
       const d=defs[(ti*3+k)%defs.length], done=k<2;
-      const verd = d[1]==='이상없음' ? '정상' : (k===0 ? '수리' : '정상');
+      // 증빙 갭 데모용: 일부 완료건은 직접촬영(사진 자동연결 약함), 일부는 재검사(조치 미완)
+      const verd = d[1]==='이상없음' ? '정상' : ((ti+k)%4===3 ? '재검사' : (k===0 ? '수리' : '정상'));
+      const cap = done ? ((ti+k)%3!==0) : null;   // true=로봇 촬영, false=직접(사진 증빙 누락)
       arr.push({ id:'W-'+(ti+1)+String(k+1).padStart(2,'0'), owner:t.id,
         ac:acs[(ti+k)%acs.length], part:d[0], area:frs[(ti*2+k)%frs.length], defect:d[1], risk:d[2],
-        status:done?'완료':'대기', robot:done?true:null, verdict:done?verd:null,
+        status:done?'완료':'대기', robot:cap, verdict:done?verd:null,
         base:d[3], lead:done?Math.round(d[3]*0.8):null, tech:t.grade,
-        quality:done?true:null, retake:false, at:done?ago(28+ti*17+k*33):null });
+        quality:done?(verd!=='재검사'):null, retake:done&&verd==='재검사', at:done?ago(28+ti*17+k*33):null });
     }
   });
   return arr;
@@ -603,6 +605,15 @@ async function completeWork(id, capturedBy, verdict){
   return w;
 }
 
+// 증빙 완결성 — 완료 작업의 사진/판정/조치/기록 4항목 (관제·KPI: 증빙 자동연결률)
+function evChecks(w){
+  return { photo: w.robot?1:0,               // 로봇 촬영=자동 연결 / 직접=수동(누락 위험)
+           verdict: w.verdict?1:0,           // 정비사 판정
+           action: (w.verdict==='재검사')?0:1, // 재검사=조치 미완
+           wo: 1 };                          // Work Card 자동 연결
+}
+const EVNAME={photo:'사진',verdict:'판정',action:'조치',wo:'기록'};
+
 async function buildDashboard(){
   const W = WORKS, cnt = f => W.filter(f).length, done = W.filter(w=>w.status==='완료');
   const waiting = W.filter(w=>w.status!=='완료');
@@ -688,6 +699,14 @@ async function buildDashboard(){
     basis:[{label:'승인 대기', value:'0건', kind:'실측'},{label:'검사 대기', value:`${waitN}건`, kind:'실측'}],
     evidence:'라이브 집계', confidence: 88,
   });
+  // ── 품질(관제): 증빙 완결성 감시 + 재검사 (완료 작업 기준, 실집계)
+  const evList = done.map(w=>({ id:w.id, part:w.part, area:w.area, owner:w.owner, defect:w.defect, checks:evChecks(w) }));
+  const evComplete = evList.filter(e=>Object.values(e.checks).every(x=>x)).length;
+  const evGaps = evList.filter(e=>!Object.values(e.checks).every(x=>x))
+    .map(e=>({ id:e.id, part:e.part, area:e.area, owner:e.owner, defect:e.defect,
+               miss: Object.keys(e.checks).filter(k=>!e.checks[k]).map(k=>EVNAME[k]) }));
+  const retakes = done.filter(w=>w.retake).map(w=>({ id:w.id, part:w.part, area:w.area, owner:w.owner, defect:w.defect }));
+  const qual = { evTotal:done.length, evComplete, evRate: done.length?Math.round(evComplete/done.length*100):100, evGaps, retakes };
   // ── 지연·위험 알림 (미완료 긴급)
   const alerts = W.filter(w=>w.status!=='완료'&&w.risk==='긴급')
     .map(w=>({id:w.id, part:w.part, defect:w.defect, risk:w.risk, why:'긴급'}));
@@ -698,7 +717,7 @@ async function buildDashboard(){
   if(roboErr>0) strip.push({label:'🤖 로봇 오류 '+roboErr});
   return {
     generatedAt:new Date().toISOString(),
-    today, ops, bottleneck, defectTop, alerts, strip, suggestions, autoDemo:AUTO,
+    today, ops, bottleneck, defectTop, alerts, strip, suggestions, autoDemo:AUTO, qual,
     pairs, fleet: liveFleet(pairs),
     activity: ACTIVITY.slice(0,8),
     hero:{

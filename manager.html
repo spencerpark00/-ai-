@@ -262,21 +262,37 @@ function viewOps(){
   </div>`;
 }
 
+function goKnowledge(){ const n=[...$$('.nv')].find(x=>x.dataset.v==='knowledge'); if(n) n.click(); }
 function viewQuality(){
-  const d=S.dash, g=d.graph||{}, top=(g.defectTop&&g.defectTop.length?g.defectTop:(d.defectTop||[]));
-  const max=Math.max(1,...top.map(x=>x.n));
-  const topHtml=top.slice(0,5).map((x,i)=>bar(KOR[x.name]||x.name,x.n,max,['#e05243','#d9a514','#5b7fb5','#8fa8cc','#c6cdd8'][i]||'#c6cdd8')).join('');
-  return `<div class="rowhead"><div class="h1">품질 <span>Quality · 새는 곳을 막는다</span></div></div>
+  const d=S.dash, g=d.graph||{}, q=d.qual||{}, top=(g.defectTop&&g.defectTop.length?g.defectTop:(d.defectTop||[]));
+  const max=Math.max(1,...top.map(x=>x.n)); const EV=['사진','판정','조치','기록'];
+  const topHtml=top.slice(0,4).map((x,i)=>bar(KOR[x.name]||x.name,x.n,max,['#e05243','#d9a514','#5b7fb5','#8fa8cc'][i]||'#c6cdd8')).join('');
+  const gaps=q.evGaps||[], retakes=q.retakes||[];
+  const gapHtml = gaps.length ? gaps.map(e=>`<div style="display:flex;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line2);align-items:center">
+      <span class="mono" style="color:var(--acc);font-size:11px;width:56px">${e.id}</span>
+      <div style="width:140px"><div style="font-weight:600;font-size:12px">${e.part} ${e.defect}</div><div class="mono" style="font-size:10px;color:var(--dim2)">${e.area} · ${e.owner||''}</div></div>
+      <div style="flex:1;display:flex;gap:4px;flex-wrap:wrap">${EV.map(n=>`<span class="chk ${e.miss.includes(n)?'no':'ok'}">${n} ${e.miss.includes(n)?'✕':'✓'}</span>`).join('')}</div>
+      <span onclick="goKnowledge()" style="cursor:pointer;font-size:10.5px;color:var(--acc);font-weight:600;white-space:nowrap">지식에서 보기 →</span></div>`).join('')
+    : '<div style="padding:24px 16px;text-align:center;color:var(--green);font-size:12.5px">✓ 증빙 완결 · 미달 작업 없음</div>';
+  const retHtml = retakes.length ? retakes.map(w=>`<div style="display:flex;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line2);align-items:center"><span class="mono" style="color:var(--acc);font-size:11px;width:56px">${w.id}</span><div style="flex:1;font-size:12px">${w.part} ${w.defect} <span style="color:var(--dim)">· ${w.area} · ${w.owner||''}</span></div><span class="badge b-amber">재검사</span></div>`).join('')
+    : '<div style="padding:20px 16px;text-align:center;color:var(--dim2);font-size:12px">지금 재검사·재촬영 반복 없음</div>';
+  return `<div class="rowhead"><div class="h1">품질 <span>Quality · 새는 곳을 지금 막는다</span></div></div>
   <div class="half">
-    <div class="card"><div class="ch"><b>재검사·재촬영 발생</b><small>반복 문제 부위</small></div>
-      ${[['WO-2607-115','외판 R2 리벳라인','반사광으로 판독 불가 — 재촬영 2회','재촬영','b-amber'],['WO-2607-110','도어 주변 외판','조치 후 재검사 복귀 1회','재검사','b-blue'],['WO-2606-098','외판 L2 하단','촬영 각도 기준 미달 — 재촬영 1회','재촬영','b-amber']].map(([wo,p,r,k,c])=>`<div style="display:flex;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line2);align-items:center"><span class="mono" style="color:var(--acc);font-size:11px;width:96px">${wo}</span><div style="width:130px;font-weight:500">${p}</div><div style="flex:1;color:var(--dim)">${r}</div><span class="badge ${c}">${k}</span></div>`).join('')}
-      <div class="muted">오늘 재검사 ${d.ops.retake}건 · 증빙 완결률 ${d.hero.quality.now}% (목표 95%)</div></div>
-    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">반려·수정 사유 분포</b> <small style="font-size:11px;color:#8b95a5">기록·절차 문제</small>
+    <div class="card"><div class="ch"><b>증빙 완결성 감시</b><small>완료 작업의 사진·판정·조치·기록 — 누락 시 보완 지시</small></div>
+      <div style="display:flex;align-items:center;gap:16px;padding:14px 16px;border-bottom:1px solid var(--line2)">
+        <div style="text-align:center"><div style="font-size:10.5px;color:var(--dim2)">증빙 완결률</div><div class="mono" style="font-size:30px;font-weight:800;line-height:1.1;color:${(q.evRate||0)>=95?'var(--green)':'var(--amber)'}">${q.evRate!=null?q.evRate:'—'}%</div><div style="font-size:10px;color:var(--dim2)">목표 95%</div></div>
+        <div style="flex:1;font-size:12px;color:#41506b;line-height:1.6">완료 <b class="mono">${q.evTotal||0}</b>건 중 완결 <b class="mono" style="color:var(--green)">${q.evComplete||0}</b> · 미달 <b class="mono" style="color:var(--red)">${gaps.length}</b>건<div style="font-size:10.5px;color:var(--dim2);margin-top:4px">기대효과 KPI — 검사·기록 <b>증빙 자동 연결률 95%↑</b> 와 직결</div></div>
+      </div>
+      ${gapHtml}
+      <div class="muted">미달 = 사진·판정·조치·기록 중 자동 연결 안 된 항목 있음 · 클릭 시 지식 탭에서 사례 확인</div></div>
+    <div class="card"><div class="ch"><b>재검사·재촬영 발생</b><small>지금 반복되는 문제 — 개입 대상</small></div>${retHtml}
+      <div class="muted">오늘 재검사 ${d.ops.retake}건 · 정비사 앱에서 '재검사' 판정 시 여기 적재</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">반려·수정 사유 분포</b> <small style="font-size:11px;color:#8b95a5">기록·절차 문제 · 개인 지목 없음</small>
       <div style="margin-top:10px">${[['사진 각도·초점 미달','40%'],['조치 기록 미비','33%'],['판정 근거 부족','27%']].map(([l,p])=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:#41506b">${l}</span><span class="mono" style="color:var(--dim)">${p}</span></div><div style="height:8px;background:var(--line2);border-radius:4px"><div style="height:8px;border-radius:4px;background:#5b7fb5;width:${p}"></div></div></div>`).join('')}</div>
-      <div style="font-size:10.5px;color:var(--dim2);margin-top:6px">최근 14일 · 작업·구간 중심 (개인 지목 없음)</div></div>
-    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">결함 발견 Top</b> <small style="font-size:11px;color:#8b95a5">지식그래프 전체 누적 · 예방 점검 우선순위</small><div style="margin-top:12px">${topHtml}</div></div>
-    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">지식 자산 규모</b> <small style="font-size:11px;color:#8b95a5">Neo4j</small>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${[['누적 사례',g.cases],['검증(환류)',g.verified],['결함 유형',g.defectTypes],['정비 절차',g.procedures]].map(([l,v])=>`<div style="background:#f7f9fc;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2)">${l}</div><div class="mono" style="font-size:17px;font-weight:700;margin-top:2px">${v!=null?Number(v).toLocaleString():'—'}</div></div>`).join('')}</div></div>
+      <div style="font-size:10.5px;color:var(--dim2);margin-top:6px">최근 14일 · 작업·구간 중심</div></div>
+    <div class="card" style="padding:14px 16px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:12.5px">정비 지식 축적</b><small style="font-size:10.5px;color:#8b95a5">Neo4j · 예방 점검 참고</small></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px">${[['누적 사례',g.cases],['검증(환류)',g.verified],['결함 유형',g.defectTypes],['정비 절차',g.procedures]].map(([l,v])=>`<div style="background:#f7f9fc;border-radius:7px;padding:7px 10px"><div style="font-size:9.5px;color:var(--dim2)">${l}</div><div class="mono" style="font-size:14px;font-weight:700">${v!=null?Number(v).toLocaleString():'—'}</div></div>`).join('')}</div>
+      <div style="margin-top:11px;font-size:10.5px;color:var(--dim2)">결함 발견 Top (예방 우선순위)</div><div style="margin-top:5px">${topHtml}</div></div>
   </div>`;
 }
 
