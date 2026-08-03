@@ -169,6 +169,7 @@ function bar(lb,n,max,color){ const w=Math.max(6,Math.round(n/max*100)); return 
 function fmtTime(iso){ if(!iso) return ''; try{return new Date(iso).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} }
 
 // ── AI 판단 근거 (제안 카드 + Drawer) ──
+let _curSug=null;
 function sugBadge(t){ return {'병목':'b-red','배분':'b-blue','품질':'b-amber','정상':'b-green'}[t]||'b-gray'; }
 function sugCards(d){
   const arr=(d.suggestions||[]);
@@ -179,6 +180,7 @@ function sugCards(d){
 }
 function openSug(id){
   const s=((S.dash&&S.dash.suggestions)||[]).find(x=>x.id===id); if(!s) return;
+  _curSug=s;
   const rows=(s.basis||[]).map(b=>`<div class="brow"><span class="bl">${b.label}</span><span class="bv">${b.value}</span><span class="bk bk-${b.kind}">${b.kind}</span></div>`).join('');
   $('#dwIn').innerHTML=`
     <div class="dw-hd"><span class="badge ${sugBadge(s.tag)}" style="font-size:9.5px">${s.tag}</span><b style="font-size:13.5px">${s.title}</b><span class="x" onclick="closeSug()">✕</span></div>
@@ -197,7 +199,15 @@ function openSug(id){
   $('#drawer').classList.add('open'); $('#dwBg').classList.add('open');
 }
 function closeSug(){ $('#drawer').classList.remove('open'); $('#dwBg').classList.remove('open'); }
-function sugAck(kind){ closeSug(); toast(kind==='무시'?'제안을 무시로 기록했습니다':(kind==='참고'?'제안을 참고함으로 기록했습니다':'우선 처리로 반영했습니다 (기록됨)')); }
+async function sugAck(kind){
+  const s=_curSug;
+  const label = kind==='반영'?'우선 처리 반영':(kind==='참고'?'참고함':'무시');
+  closeSug();
+  try{ await fetch('/api/suggestion/ack',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:s?s.id:'', title:s?s.title:'', tag:s?s.tag:'', action:label})}); }catch(e){}
+  await loadOps();  // 활동 이력 즉시 갱신
+  toast('활동 이력에 기록했습니다 — '+label);
+}
 function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSug(); });
 
@@ -220,7 +230,7 @@ function viewOps(){
     <span class="mono" style="color:var(--acc);font-size:11px;width:130px">${x.id}</span><div style="flex:1;font-size:12px;color:#41506b">${x.part} ${x.defect} — 수리 판정 승인 요청</div><div style="font-size:11px;color:var(--dim)">${x.tech||''}</div></div>`).join('')
     :'<div style="padding:22px 16px;text-align:center;color:var(--dim2);font-size:12px">승인 대기 없음</div>';
   const fleet=(d.fleet||[]).map(f=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:7px;background:#f7f9fc;font-size:11px;color:#41506b"><div style="width:7px;height:7px;border-radius:50%;background:${f.dot}"></div>${f.label} <b class="mono" style="margin-left:auto">${f.n}</b></div>`).join('');
-  const tl=(d.activity||[]).map(a=>`<div class="tl"><div class="tm">${fmtTime(a.at)}</div><div style="width:6px;height:6px;border-radius:50%;background:${a.verdict==='수리'?'#e05243':(a.verdict==='재검사'?'#d9a514':'#2e7d4f')};flex:none;margin-top:5px"></div><div class="td2">${a.text}</div></div>`).join('');
+  const tl=(d.activity||[]).map(a=>`<div class="tl"><div class="tm">${fmtTime(a.at)}</div><div style="width:6px;height:6px;border-radius:50%;background:${a.kind==='ai'?'#2b5fa8':(a.verdict==='수리'?'#e05243':(a.verdict==='재검사'?'#d9a514':'#2e7d4f'))};flex:none;margin-top:5px"></div><div class="td2">${a.kind==='ai'?'🤖 ':''}${a.text}</div></div>`).join('');
   return `<div class="rowhead"><div class="h1">운영 <span>Operations · 오늘을 돌린다</span></div><div style="flex:1"></div><div style="font-size:11px;color:#8b95a5">이벤트 파생 · 4초 폴링 · 마지막 갱신 <span id="clk2"></span></div></div>
   <div class="grid4">${ct('오늘 전체','Total',t.total,'건')}${ct('완료','Done',t.done,'건 · 계획 대비',' var(--green)')}${ct('대기','Waiting',t.ongoing,'건 · 승인 포함','var(--amber)')}${ct('긴급','Urgent',t.urgent,'건','var(--red)')}</div>
   <div class="two">

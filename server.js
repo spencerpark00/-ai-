@@ -695,6 +695,17 @@ const server = http.createServer(async (req,res)=>{
     resetWorks();
     return json(res, {ok:true, count:WORKS.filter(w=>w.status!=='완료').length});
   }
+  // API: AI 제안에 대한 관리자 판단 기록 → 활동 이력에 남김 (HITL 흔적)
+  if(u.pathname === '/api/suggestion/ack' && req.method==='POST'){
+    try{
+      const p = JSON.parse(await readBody(req) || '{}');
+      const label = p.action || '참고함';
+      ACTIVITY.unshift({ at:new Date().toISOString(), id:p.id||'AI', kind:'ai', by:'관리자',
+        text:`AI 제안 '${p.title||'운영 제안'}' → 관리자 ${label}` });
+      if(ACTIVITY.length>50) ACTIVITY.length=50;
+      return json(res, {ok:true});
+    }catch(e){ return json(res, {error:e.message}, 500); }
+  }
 
   // API: 케이스 브라우저 (지식 탭) — Neo4j 검증사례(환류) + 외부사례(FAA SDR) 읽기 전용
   if(u.pathname === '/api/cases'){
