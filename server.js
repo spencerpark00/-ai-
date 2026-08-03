@@ -415,33 +415,113 @@ async function answerLLM(q, history){
 // ============================================================
 function ago(min){ return new Date(Date.now()-min*60000).toISOString(); }
 
-// 오늘의 작업 (라이브 공유 상태)
-//   정비사 앱에서 판정 → completeWork() → WORKS·ACTIVITY 갱신 → 관리자 대시보드 실시간 반영
+// 정비사 계정 5명 (각자 로봇 페어) — 로그인 시 '누구인지' 선택
+const TECHS = [
+  {id:'박재현', grade:'숙련', robot:'MR-01', uid:'K-311001'},
+  {id:'이수민', grade:'중급', robot:'MR-02', uid:'K-311002'},
+  {id:'최동욱', grade:'중급', robot:'MR-03', uid:'K-311003'},
+  {id:'김하늘', grade:'신입', robot:'MR-04', uid:'K-311004'},
+  {id:'한지원', grade:'신입', robot:'MR-05', uid:'K-311005'},
+];
+const techOf = id => TECHS.find(t=>t.id===id) || null;
+
+// 오늘의 작업 (라이브 공유 상태) — owner로 정비사별 배정
+//   정비사 앱: 자기 작업만(/api/works?tech=). 판정 → completeWork() → 관리자 대시보드 실시간 반영
 let WORKS = [
-  // 이미 완료 (대시보드 baseline + 이력 시드)
-  {id:'W-231',ac:'B777',      part:'SKIN',    area:'FR52/STR14R',defect:'부식',    risk:'긴급',status:'완료',robot:true, verdict:'수리',base:175,lead:132,tech:'숙련',quality:true, retake:false,at:ago(96)},
-  {id:'W-232',ac:'A321',      part:'STRINGER',area:'FR61/STR22L',defect:'균열',    risk:'주의',status:'완료',robot:true, verdict:'수리',base:140,lead:104,tech:'숙련',quality:true, retake:false,at:ago(63)},
-  {id:'W-233',ac:'B737',      part:'PANEL',   area:'FR40/STR08R',defect:'이상없음',risk:'정상',status:'완료',robot:false,verdict:'정상',base:90, lead:72, tech:'숙련',quality:true, retake:false,at:ago(31)},
-  // 정비사 대기 (라이브 처리 대상)
-  {id:'W-234',ac:'EMB ERJ190',part:'SKIN',    area:'FR73/STR29L',defect:'부식',    risk:'주의',status:'대기',robot:null,verdict:null,base:160,lead:null,tech:'신입',quality:null,retake:false,at:null},
-  {id:'W-235',ac:'A320',      part:'TRACK',   area:'FR33/STR11L',defect:'마모',    risk:'주의',status:'대기',robot:null,verdict:null,base:120,lead:null,tech:'신입',quality:null,retake:false,at:null},
-  {id:'W-236',ac:'B777',      part:'SKIN',    area:'FR58/STR19R',defect:'균열',    risk:'긴급',status:'대기',robot:null,verdict:null,base:150,lead:null,tech:'숙련',quality:null,retake:false,at:null},
-  {id:'W-237',ac:'A321',      part:'PANEL',   area:'FR45/STR16L',defect:'찍힘',    risk:'주의',status:'대기',robot:null,verdict:null,base:95, lead:null,tech:'신입',quality:null,retake:false,at:null},
-  {id:'W-238',ac:'B737',      part:'STRINGER',area:'FR67/STR24R',defect:'부식',    risk:'주의',status:'대기',robot:null,verdict:null,base:130,lead:null,tech:'숙련',quality:null,retake:false,at:null},
+  // 박재현(숙련) · MR-01
+  {id:'W-101',owner:'박재현',ac:'B777',      part:'SKIN',    area:'FR52/STR14R',defect:'부식',    risk:'긴급',status:'완료',robot:true, verdict:'수리',base:175,lead:132,tech:'숙련',quality:true, retake:false,at:ago(96)},
+  {id:'W-102',owner:'박재현',ac:'A321',      part:'STRINGER',area:'FR61/STR22L',defect:'균열',    risk:'주의',status:'대기',robot:null,verdict:null,base:140,lead:null,tech:'숙련',quality:null,retake:false,at:null},
+  // 이수민(중급) · MR-02
+  {id:'W-111',owner:'이수민',ac:'B737',      part:'PANEL',   area:'FR40/STR08R',defect:'이상없음',risk:'정상',status:'완료',robot:false,verdict:'정상',base:90, lead:72, tech:'중급',quality:true, retake:false,at:ago(63)},
+  {id:'W-112',owner:'이수민',ac:'EMB ERJ190',part:'SKIN',    area:'FR73/STR29L',defect:'부식',    risk:'주의',status:'대기',robot:null,verdict:null,base:160,lead:null,tech:'중급',quality:null,retake:false,at:null},
+  // 최동욱(중급) · MR-03
+  {id:'W-121',owner:'최동욱',ac:'B777',      part:'SKIN',    area:'FR58/STR19R',defect:'균열',    risk:'긴급',status:'대기',robot:null,verdict:null,base:150,lead:null,tech:'중급',quality:null,retake:false,at:null},
+  {id:'W-122',owner:'최동욱',ac:'A321',      part:'PANEL',   area:'FR45/STR16L',defect:'찍힘',    risk:'주의',status:'대기',robot:null,verdict:null,base:95, lead:null,tech:'중급',quality:null,retake:false,at:null},
+  // 김하늘(신입) · MR-04
+  {id:'W-131',owner:'김하늘',ac:'A320',      part:'TRACK',   area:'FR33/STR11L',defect:'마모',    risk:'주의',status:'대기',robot:null,verdict:null,base:120,lead:null,tech:'신입',quality:null,retake:false,at:null},
+  {id:'W-132',owner:'김하늘',ac:'B737',      part:'SKIN',    area:'FR51/STR20R',defect:'부식',    risk:'주의',status:'대기',robot:null,verdict:null,base:140,lead:null,tech:'신입',quality:null,retake:false,at:null},
+  // 한지원(신입) · MR-05
+  {id:'W-141',owner:'한지원',ac:'EMB ERJ190',part:'STRINGER',area:'FR67/STR24R',defect:'부식',    risk:'주의',status:'대기',robot:null,verdict:null,base:130,lead:null,tech:'신입',quality:null,retake:false,at:null},
 ];
 // 데모 리셋용 초기 스냅샷 (교육생이 작업을 다 완료해도 '새 작업 배정'으로 다시 체험)
 const WORKS_SEED = JSON.parse(JSON.stringify(WORKS));
-// 가동 보드 — 정비사·로봇 5쌍 (가명) · 현재 작업/단계/상태 (이벤트 파생 시연 데이터)
-const PAIRS = [
-  {tech:'박재현',grade:'숙련',robot:'MR-01',rst:'대기',  wo:'WO-2607-114',task:'A321-200 HL8290 동체 외판 L2 구역 점검 — 리벳라인 부식·도장 상태 확인',step:'7/12 판독 검토',prog:58,status:'작업중',elapsed:'42분',parallel:null},
-  {tech:'이수민',grade:'중급',robot:'MR-02',rst:'촬영중',wo:'WO-2607-115',task:'동체 외판 R2 구역 점검 — 패널 P05~P09 자동 촬영 스캔',step:'5/12 로봇 촬영',prog:42,status:'작업중',elapsed:'27분',parallel:'로봇 촬영 중 — 정비사 R2 하단 육안점검 병행'},
-  {tech:'최동욱',grade:'중급',robot:'MR-03',rst:'대기',  wo:'WO-2607-117',task:'후방동체 스킨 패널 점검 — 낙뢰 흔적 확인 구간',step:'9/12 판정 상신',prog:75,status:'승인 대기',elapsed:'18분',parallel:null},
-  {tech:'김하늘',grade:'신입',robot:'MR-04',rst:'이동중',wo:'WO-2607-118',task:'동체 하부 외판 점검 — 이상 후보 2건 현장 확인 중',step:'3/12 이상 후보 확인',prog:25,status:'작업중',elapsed:'12분',parallel:null},
-  {tech:'한지원',grade:'신입',robot:'MR-05',rst:'충전중',wo:'—',task:'배정 대기 · 로봇 충전 중 (15:20 완료 예정)',step:'—',prog:0,status:'충전/점검',elapsed:'—',parallel:null},
-];
-function fleetOf(pairs){
+// ── 가동 보드 라이브 엔진 (LIVE) ───────────────────────────
+//   각 정비사 pair의 현재 단계·경과·로봇상태를 실시간 보유.
+//   실제 정비사가 앱에서 진행 보고 → 그 pair는 실데이터로. 나머지는 앰비언트(자동 진행)로 생동감.
+const STEP_NAMES = ['작업 배정','로봇 촬영','AI 이상후보','정비사 판정','작업 기록'];
+const STEP_ROBOT = ['이동중','촬영중','대기','대기','대기'];
+const TASK_POOL = {
+  '박재현':'A321-200 동체 외판 L2 구역 점검 — 리벳라인 부식·도장 상태 확인',
+  '이수민':'B737 동체 외판 R2 구역 점검 — 패널 자동 촬영 스캔',
+  '최동욱':'B777 후방동체 스킨 패널 점검 — 낙뢰 흔적 확인 구간',
+  '김하늘':'A320 동체 하부 외판 점검 — 이상 후보 현장 확인',
+  '한지원':'ERJ190 스트링거 정기 점검 — 체결부 상태 확인',
+};
+let LIVE = {};
+function woNo(){ return 'WO-2608-'+String(100+Math.floor(Math.random()*899)); }
+function ambientStart(id){
+  const now=Date.now();
+  LIVE[id]={ wo:woNo(), task:TASK_POOL[id]||'정기 외관 점검', step:1, workStart:now, stepStart:now,
+    robot:STEP_ROBOT[0], status:'작업중', prog:20, real:false, lastReal:0, charge:false };
+}
+function initLive(){
+  TECHS.forEach((t,i)=>{ ambientStart(t.id);
+    const L=LIVE[t.id]; L.step=1+((i*2)%5); L.robot=STEP_ROBOT[L.step-1];
+    L.stepStart=Date.now()-8000*i; L.workStart=Date.now()-60000*(i+1); L.prog=Math.round(L.step/5*100);
+  });
+}
+// 앰비언트 진행 — 실제 활동 중이 아닌 pair를 4초마다 서서히 진행 (콜드 진입 생동감)
+function ambientTick(){
+  const now=Date.now();
+  TECHS.forEach(t=>{
+    let L=LIVE[t.id]; if(!L){ ambientStart(t.id); return; }
+    if(L.real){ if(now-L.lastReal<45000) return; L.real=false; }   // 실제 활동 중이면 건드리지 않음
+    if(L.charge){ if(now-L.stepStart>9000) ambientStart(t.id); return; }
+    const dur=14000+((t.id.length*3700)%12000);                    // 단계당 14~26초
+    if(now-L.stepStart>dur){
+      L.step++;
+      if(L.step>5){ L.status='충전/점검'; L.robot='충전중'; L.charge=true; L.stepStart=now; L.prog=100; return; }
+      L.stepStart=now; L.robot=STEP_ROBOT[L.step-1]; L.status='작업중'; L.prog=Math.round(L.step/5*100);
+    }
+  });
+}
+initLive();
+setInterval(ambientTick, 4000);
+
+// 실제 정비사 진행 보고 → 해당 pair를 실데이터로 갱신
+function reportProgress(techId, workId, step){
+  const w=WORKS.find(x=>x.id===workId);
+  const id=techId||(w&&w.owner); if(!id||!techOf(id)) return;
+  const now=Date.now();
+  let L=LIVE[id];
+  if(!L || step<=1 || L.charge){ L=LIVE[id]={ workStart:now }; }
+  L.wo = workId ? ('WO·'+workId) : woNo();
+  L.task = w ? (w.ac+' '+w.part+' '+w.area+' — '+w.defect+' 점검') : (TASK_POOL[id]||'점검');
+  L.step = Math.max(1,Math.min(5,step||1));
+  L.stepStart=now; if(!L.workStart) L.workStart=now;
+  L.robot=STEP_ROBOT[L.step-1]; L.status='작업중'; L.prog=Math.round(L.step/5*100);
+  L.real=true; L.lastReal=now; L.charge=false;
+}
+function fmtMin(ms){ return Math.max(0,Math.round(ms/60000))+'분'; }
+// 가동보드 pair 목록 = TECHS + LIVE 파생
+function livePairs(){
+  const now=Date.now();
+  return TECHS.map(t=>{
+    const L=LIVE[t.id]||{}; const charging=L.charge||L.robot==='충전중';
+    return { tech:t.id, grade:t.grade, robot:t.robot, rst:L.robot||'대기',
+      wo: charging?'—':(L.wo||'—'),
+      task: charging?'로봇 충전·점검 중 (다음 작업 대기)':(L.task||'배정 대기'),
+      step: charging?'—':((L.step||1)+'/5 '+STEP_NAMES[(L.step||1)-1]),
+      prog:L.prog||0, status:L.status||'대기',
+      elapsed: charging?'—':fmtMin(now-(L.workStart||now)),
+      parallel:(L.step===2&&!charging)?'로봇 촬영 중 — 정비사 인접부 육안점검 병행':null,
+      real:!!L.real };
+  });
+}
+function liveFleet(){
   const m={촬영:0,이동:0,대기:0,충전:0,오류:0};
-  pairs.forEach(p=>{ if(p.rst==='촬영중')m.촬영++; else if(p.rst==='이동중')m.이동++; else if(p.rst==='충전중')m.충전++; else if(p.rst==='오류')m.오류++; else m.대기++; });
+  TECHS.forEach(t=>{ const r=(LIVE[t.id]||{}).robot;
+    if(r==='촬영중')m.촬영++; else if(r==='이동중')m.이동++; else if(r==='충전중')m.충전++; else if(r==='오류')m.오류++; else m.대기++; });
   const dot={촬영:'#2b5fa8',이동:'#2e7d4f',대기:'#9aa3b2',충전:'#d9a514',오류:'#e05243'};
   return Object.entries(m).filter(([k,v])=>v>0||k!=='오류').map(([label,n])=>({label,n,dot:dot[label]}));
 }
@@ -456,6 +536,7 @@ let ACTIVITY = deriveActivity(WORKS);
 function resetWorks(){
   WORKS = JSON.parse(JSON.stringify(WORKS_SEED));
   ACTIVITY = deriveActivity(WORKS);
+  initLive();   // 가동보드도 초기 상태로
 }
 
 // 환류(write-back) — 승인된 작업을 Neo4j 지식그래프에 검증사례로 축적
@@ -489,6 +570,14 @@ async function completeWork(id, capturedBy, verdict){
       w.hwanryu = true;
       console.log('  ↻ 환류 축적: '+w.id+' ('+w.part+' '+w.defect+') → Neo4j VerifiedCase');
     }catch(e){ console.log('  ! 환류 실패: '+e.message); }
+  }
+  // 가동보드 라이브 갱신 — 담당 정비사 pair를 '완료'로 (수리면 승인 대기)
+  if(w.owner && techOf(w.owner)){
+    const now=Date.now(), prev=LIVE[w.owner]||{};
+    LIVE[w.owner]={ wo:'WO·'+w.id, task:w.ac+' '+w.part+' '+w.area+' — '+w.defect+' 점검',
+      step:5, workStart:prev.workStart||now, stepStart:now, robot:'대기', prog:100,
+      status: w.verdict==='수리'?'승인 대기':(w.verdict==='재검사'?'재검사':'완료'),
+      real:true, lastReal:now, charge:false };
   }
   return w;
 }
@@ -528,8 +617,9 @@ async function buildDashboard(){
   // ── AI 판단 근거 (제안 + 근거) — 실데이터 기반, 추정치는 kind로 명시 (정직 라벨)
   const approvalN = ops.approvalWait, waitN = waiting.length, retakeN = ops.retake;
   const avgLead = (()=>{ const a=done.filter(w=>w.lead); return a.length?Math.round(a.reduce((s,w)=>s+w.lead,0)/a.length):0; })();
-  const apprElapsed = Math.max(0, ...PAIRS.filter(p=>p.status==='승인 대기').map(p=>parseInt(p.elapsed)||0));
-  const idle = fleetOf(PAIRS).filter(f=>f.label==='대기'||f.label==='충전').reduce((s,f)=>s+f.n,0);
+  const apprElapsed = (()=>{ const q=W.filter(w=>w.status==='완료'&&w.verdict==='수리'&&w.at);
+    return q.length?Math.max(...q.map(w=>Math.round((Date.now()-new Date(w.at).getTime())/60000))):0; })();
+  const idle = liveFleet().filter(f=>f.label==='대기'||f.label==='충전').reduce((s,f)=>s+f.n,0);
   const suggestions = [];
   if(approvalN>0) suggestions.push({
     id:'S1', tag:'병목', title:'판정 승인 구간 병목', priority:'높음',
@@ -582,12 +672,12 @@ async function buildDashboard(){
   // 상단 알림 스트립 — 문제만 (정상이면 빈 배열)
   const strip = [];
   if(today.delayed>0) strip.push({label:'🔴 긴급 '+today.delayed});
-  const roboErr = PAIRS.filter(p=>p.rst==='오류').length;
+  const roboErr = livePairs().filter(p=>p.rst==='오류').length;
   if(roboErr>0) strip.push({label:'🤖 로봇 오류 '+roboErr});
   return {
     generatedAt:new Date().toISOString(),
     today, ops, bottleneck, defectTop, alerts, strip, suggestions,
-    pairs: PAIRS, fleet: fleetOf(PAIRS),
+    pairs: livePairs(), fleet: liveFleet(),
     activity: ACTIVITY.slice(0,8),
     hero:{
       efficiency:{title:'작업 효율', metric:'평균 리드타임 단축률', now:efficiency, unit:'%', target:20,
@@ -679,8 +769,15 @@ const server = http.createServer(async (req,res)=>{
 
   // API: 오늘의 작업 목록 (정비사 앱 첫 화면)
   if(u.pathname === '/api/works'){
-    return json(res, WORKS.map(w=>({id:w.id, ac:w.ac, part:w.part, area:w.area, defect:w.defect,
-      risk:w.risk, status:w.status, tech:w.tech, verdict:w.verdict})));
+    const tech = u.searchParams.get('tech');           // 정비사 앱: 자기 작업만
+    const list = tech ? WORKS.filter(w=>w.owner===tech) : WORKS;
+    return json(res, list.map(w=>({id:w.id, ac:w.ac, part:w.part, area:w.area, defect:w.defect,
+      risk:w.risk, status:w.status, tech:w.tech, owner:w.owner, verdict:w.verdict})));
+  }
+  // API: 정비사 단계 진행 보고 → 가동보드 라이브 갱신 (실시간)
+  if(u.pathname === '/api/works/progress' && req.method==='POST'){
+    try{ const p=JSON.parse(await readBody(req)||'{}'); reportProgress(p.tech, p.id, p.step||1);
+      return json(res, {ok:true}); }catch(e){ return json(res, {error:e.message}, 500); }
   }
   // API: 정비사 판정 → 작업 완료 (관리자 대시보드에 실시간 반영 + 이력 기록)
   if(u.pathname === '/api/works/complete' && req.method==='POST'){

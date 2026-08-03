@@ -167,7 +167,7 @@
 </style></head><body>
 <div class="app">
   <div class="head">
-    <div class="r1"><span class="lg"><span class="dot"></span>MRO Copilot</span><span>정비 작업 도우미</span><span id="conn" class="conn off">연결 중…</span><span onclick="doLogout()" style="font-size:10.5px;color:var(--dim2);cursor:pointer;padding:2px 4px" title="로그아웃">로그아웃</span></div>
+    <div class="r1"><span class="lg"><span class="dot"></span>MRO Copilot</span><span id="whoami">정비 작업 도우미</span><span id="conn" class="conn off">연결 중…</span><span onclick="doLogout()" style="font-size:10.5px;color:var(--dim2);cursor:pointer;padding:2px 4px" title="로그아웃">로그아웃</span></div>
     <h1 id="woTitle">작업 불러오는 중…</h1>
     <div class="meta" id="woMeta"></div>
   </div>
@@ -199,7 +199,15 @@
 <script>
 // ── 진입 가드 / 로그아웃 (로그인은 통합 랜딩 /login.html 에서 처리) ──
 function isTech(){ try{ return sessionStorage.getItem('mroRole')==='tech'; }catch(e){ return false; } }
-function doLogout(){ try{ sessionStorage.removeItem('mroRole'); }catch(e){} location.replace('/'); }
+const TECHID = (function(){ try{ return sessionStorage.getItem('mroTech')||''; }catch(e){ return ''; } })();
+const TECHMAP = {'박재현':'MR-01','이수민':'MR-02','최동욱':'MR-03','김하늘':'MR-04','한지원':'MR-05'};
+function doLogout(){ try{ sessionStorage.removeItem('mroRole'); sessionStorage.removeItem('mroTech'); }catch(e){} location.replace('/'); }
+// 단계 진행 → 서버 보고 → 관리자 가동보드 실시간 반영
+function reportProgress(step){
+  if(!TECHID || !CURWORK) return;
+  try{ fetch('/api/works/progress',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({tech:TECHID, id:CURWORK.id, step:step})}); }catch(e){}
+}
 const KOR={DAMAGED:'손상',CORRODED:'부식',CRACKED:'균열',DENTED:'찍힘',GOUGED:'긁힘',PUNCTURED:'천공',WORN:'마모',DELAMINATED:'박리',BROKEN:'파손',MISSING:'누락'};
 const COLOR={DAMAGED:'var(--dmg,#fbbf24)',CORRODED:'var(--corr)',CRACKED:'var(--dang)'};
 // 위험도 매핑 (구조 안전 기준 · 실도입 시 운항영향 통계로 확정)
@@ -211,10 +219,13 @@ const RISK={CRACKED:['red','즉시 조치','구조 안전 직결 — 다음 비�
 let WORKS=[], CURWORK=null, STEP=0, FINDING=null;
 const RISKB={긴급:['red','🔴'],주의:['org','🟠'],정상:['yel','🟢']};
 
-async function boot(){ await loadWorks(); showList(); }
+async function boot(){
+  if(TECHID){ const w=document.getElementById('whoami'); if(w) w.textContent=TECHID+' 정비사 · 🤖 '+(TECHMAP[TECHID]||''); }
+  await loadWorks(); showList();
+}
 async function loadWorks(){
   try{
-    const r=await fetch('/api/works'); WORKS=await r.json();
+    const r=await fetch('/api/works?tech='+encodeURIComponent(TECHID)); WORKS=await r.json();
     document.getElementById('conn').className='conn on';document.getElementById('conn').textContent='● 연결됨';
   }catch(e){document.getElementById('conn').className='conn off';document.getElementById('conn').textContent='✗ 미연결';}
 }
@@ -253,6 +264,7 @@ function pickWork(id){
   document.getElementById('woTitle').textContent=CURWORK.part+' '+CURWORK.defect+' 검사';
   document.getElementById('woMeta').innerHTML='기체 <b>'+CURWORK.ac+'</b> · 부위 <b>'+CURWORK.part+' '+CURWORK.area+'</b>';
   STEP=1; renderProg(); renderStage();
+  reportProgress(1);   // 작업 배정 → 로봇 이동 (관리자 보드 실시간)
 }
 function backToList(){ FINDING=null; showList(); }
 function toast(msg){
@@ -271,7 +283,8 @@ function renderProg(){
     return '<div class="pstep '+cls+'"><div class="n">'+ic+'</div>'+s[1]+'</div>';
   }).join('');
 }
-function go(step){STEP=step;renderProg();renderStage();document.getElementById('body').scrollTop=0;}
+function go(step){STEP=step;renderProg();renderStage();document.getElementById('body').scrollTop=0;
+  if(step>=2&&step<=4) reportProgress(step);}   // 촬영·AI판독·판정 단계 실시간 보고
 
 function renderStage(){
   const b=document.getElementById('body');

@@ -57,6 +57,11 @@
     </div>
   </div>
 
+  <div id="techpick" style="display:none;margin-bottom:18px">
+    <div class="rlabel">정비사 선택 Technician <span style="font-weight:400;color:#9aa3b2">— 각자 배정 작업이 다릅니다</span></div>
+    <div id="techchips" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+  </div>
+
   <div class="fld"><label>사번 Employee ID</label><input id="uid" class="mono" value=""></div>
   <div class="fld"><label>비밀번호 Password</label><input id="pw" type="password" value="mro-poc-2026"></div>
   <button class="go" onclick="submit()">사내 SSO 로그인</button>
@@ -68,18 +73,47 @@
   // 역할별 데모 계정·진입 대상
   var ROLES = {
     manager: { uid:'K-208114', to:'/manager.html', hint:'관리자 관제 콘솔 — 운영·품질·인재·지식·효과 리포트' },
-    tech:    { uid:'K-311027', to:'/index.html',   hint:'정비사 현장 앱 — 오늘의 작업 확인·촬영·판정' }
+    tech:    { uid:'K-311001', to:'/index.html',   hint:'정비사 현장 앱 — 아래에서 정비사를 선택하세요' }
   };
-  var current = null;
+  // 정비사 5명 (서버 TECHS와 동일)
+  var TECHS = [
+    {id:'박재현', grade:'숙련', robot:'MR-01', uid:'K-311001'},
+    {id:'이수민', grade:'중급', robot:'MR-02', uid:'K-311002'},
+    {id:'최동욱', grade:'중급', robot:'MR-03', uid:'K-311003'},
+    {id:'김하늘', grade:'신입', robot:'MR-04', uid:'K-311004'},
+    {id:'한지원', grade:'신입', robot:'MR-05', uid:'K-311005'},
+  ];
+  var current = null, curTech = null;
+  function renderTechs(){
+    document.getElementById('techchips').innerHTML = TECHS.map(function(t){
+      return '<div class="role" data-tech="'+t.id+'" onclick="pickTech(\''+t.id+'\')" style="padding:10px 8px">'
+        + '<div class="rt">'+t.id+' <span style="font-weight:400;color:#8b95a5;font-size:10px">'+t.grade+'</span></div>'
+        + '<div class="rd">🤖 '+t.robot+'</div></div>';
+    }).join('');
+  }
+  function pickTech(id){
+    curTech = id;
+    document.querySelectorAll('[data-tech]').forEach(function(el){ el.classList.toggle('on', el.dataset.tech===id); });
+    var t = TECHS.find(function(x){return x.id===id;});
+    if(t) document.getElementById('uid').value = t.uid;
+    document.getElementById('hint').textContent = t.id+' 정비사로 로그인 — '+t.robot+' 페어';
+  }
   function pick(r){
     current = r;
-    document.querySelectorAll('.role').forEach(function(el){ el.classList.toggle('on', el.dataset.role===r); });
-    document.getElementById('uid').value = ROLES[r].uid;
-    document.getElementById('hint').textContent = ROLES[r].hint;
+    document.querySelectorAll('.roles > .role').forEach(function(el){ el.classList.toggle('on', el.dataset.role===r); });
+    document.getElementById('techpick').style.display = (r==='tech') ? 'block' : 'none';
+    if(r==='tech'){ renderTechs(); pickTech(curTech || TECHS[0].id); }
+    else { document.getElementById('uid').value = ROLES[r].uid; document.getElementById('hint').textContent = ROLES[r].hint; }
   }
   function submit(){
     if(!current){ document.getElementById('hint').textContent='먼저 역할(관리자/정비사)을 선택하세요'; return; }
-    try{ sessionStorage.setItem('mroRole', current); }catch(e){}
+    try{
+      sessionStorage.setItem('mroRole', current);
+      if(current==='tech'){
+        if(!curTech){ document.getElementById('hint').textContent='정비사를 선택하세요'; return; }
+        sessionStorage.setItem('mroTech', curTech);
+      } else { sessionStorage.removeItem('mroTech'); }
+    }catch(e){}
     location.href = ROLES[current].to;
   }
   document.addEventListener('keydown', function(e){ if(e.key==='Enter') submit(); });
