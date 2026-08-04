@@ -22,6 +22,16 @@
 3. 끝 — 서버 재시작 없이 다음 조회부터 반영됩니다
 
 ## 참고
-- 이미지가 없는 유형은 자동으로 **유형별 스키매틱 이미지**로 대체됩니다 (지금 상태)
+- 이미지가 없는 유형은 자동으로 **유형별 스키매틱 이미지**로 대체됩니다
 - 부식은 유형 이미지가 없으면 기존 `assets/corrosion_al.jpg` 로 대체
 - 권장 비율: 가로가 조금 긴 사진 (상세 패널이 약 16:9 영역)
+- 정리 스크립트: `bash 서비스/scripts/sync-defect-images.sh` (한글 폴더 → 규칙명 자동 복사)
+
+## 출처 · 라이선스 (Attribution)
+| 유형 | 데이터셋 | 라이선스 |
+| --- | --- | --- |
+| 균열(crack)·찍힘(dent)·긁힘(scratch) | Roboflow **aircraft-skin-defects-new-dataset** (by Dibya Dillip) | **CC BY 4.0** |
+| 부식(corrosion) | (예정) Roboflow **aircraft_skin_defects** (IISc) 등 | CC BY 4.0 / CC0 |
+
+> CC BY 4.0 데이터는 **출처 표기 필수**. 발표·제안 자료에 위 출처를 함께 명시하세요.
+> (데이터정의서 부록 3의 비전 데이터셋 목록과 동일)
