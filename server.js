@@ -571,7 +571,7 @@ function resetWorks(){
 const Q_VERIFY_WRITE = `
 MERGE (p:Part {name:$part})
 CREATE (v:VerifiedCase {id:$id, aircraft:$ac, condition:$cond, action:$verdict,
-        approvedBy:$by, approvedAt:$at, source:'PoC시연'})
+        approvedBy:$by, owner:$by, capturedBy:$cap, area:$area, approvedAt:$at, source:'PoC시연'})
 MERGE (v)-[:ON_PART]->(p)
 RETURN v.id AS id`;
 
@@ -592,7 +592,8 @@ async function completeWork(id, capturedBy, verdict){
   if(w.verdict!=='재검사'){
     try{
       await cypher(Q_VERIFY_WRITE, {id:'V-'+w.id+'-'+Date.now(), part:w.part, ac:w.ac,
-        cond:w.defect, verdict:w.verdict, by:'정비사', at:w.at});
+        cond:w.defect, verdict:w.verdict, by:(w.owner||'정비사'),
+        cap:(w.robot?'robot':'direct'), area:(w.area||''), at:w.at});
       w.hwanryu = true;
       console.log('  ↻ 환류 축적: '+w.id+' ('+w.part+' '+w.defect+') → Neo4j VerifiedCase');
     }catch(e){ console.log('  ! 환류 실패: '+e.message); }
@@ -615,6 +616,12 @@ function evChecks(w){
            wo: 1 };                          // Work Card 자동 연결
 }
 const EVNAME={photo:'사진',verdict:'판정',action:'조치',wo:'기록'};
+// 케이스의 담당 정비사 유추 — 저장된 owner 우선, 없으면 case id(V-W-{n}xx)에서
+function caseTech(v){
+  let name = (v.owner || v.by || '');
+  if(!techOf(name)){ const m=/W-(\d)/.exec(v.id||''); if(m){ const t=TECHS[(+m[1])-1]; if(t) name=t.id; } }
+  return techOf(name) || null;
+}
 
 async function buildDashboard(){
   const W = WORKS, cnt = f => W.filter(f).length, done = W.filter(w=>w.status==='완료');
@@ -891,18 +898,23 @@ const server = http.createServer(async (req,res)=>{
         MATCH (v:VerifiedCase)
         OPTIONAL MATCH (v)-[:ON_PART]->(p:Part)
         RETURN v.id AS id, v.aircraft AS aircraft, v.condition AS defect, v.action AS action,
-               v.approvedBy AS by, v.approvedAt AS at, v.source AS source, coalesce(p.name, v.partName) AS part
+               v.approvedBy AS by, v.owner AS owner, v.capturedBy AS cap, v.area AS area,
+               v.approvedAt AS at, v.source AS source, coalesce(p.name, v.partName) AS part
         ORDER BY v.approvedAt DESC LIMIT 40`, {}); }catch(e){}
       try{ E = await cypher(`
         MATCH (c:ExternalCase) WHERE c.summary IS NOT NULL
         RETURN c.aircraft AS aircraft, c.condition AS defect, c.summary AS summary,
                c.partName AS part, c.fsFrom AS fs, c.stringer AS str LIMIT 12`, {}); }catch(e){}
       const verified = V.map((v,i)=>{
-        const checks = {photo:1, verdict:1, action:(v.action?1:0), wo:1}; // 환류 승인건 = 완결
+        const t = caseTech(v);                       // 담당 정비사(유추)
+        const direct = v.cap==='direct';
+        const checks = {photo: direct?0:1, verdict:1, action:(v.action==='재검사'?0:1), wo:1};
         return { id: v.id || ('VC-'+String(i+1).padStart(4,'0')), src:'검증사례',
-          at: v.at || '', aircraft: v.aircraft || '-', part: v.part || '-',
-          defect: kor(v.defect), verdict: v.action || '정상 판정', by: v.by || '정비사',
-          capture:'로봇/직접', poc: v.source==='PoC시연',
+          at: v.at || '', aircraft: v.aircraft || '-', part: v.part || '-', area: v.area||'',
+          defect: kor(v.defect), verdict: v.action || '정상 판정',
+          by: t?t.tech:(v.by||'정비사'), tech: t?t.tech:'', robot: t?t.robot:'', grade: t?t.grade:'',
+          capture: v.cap==='direct'?'직접 촬영':(v.cap==='robot'?'로봇 촬영':'로봇/직접'),
+          poc: v.source==='PoC시연',
           checks, complete: Object.values(checks).every(x=>x) };
       });
       const external = E.map((c,i)=>{

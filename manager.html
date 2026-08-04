@@ -332,6 +332,28 @@ function viewPeople(){
   </div>`;
 }
 
+// 결함 유형별 증거 이미지 — 부식은 실사진, 나머지는 유형별 스키매틱(금속 패널 위 결함)
+const DEFECT_SVG={
+  '균열':'<polyline points="110,58 128,78 118,90 140,102 128,116 150,126" fill="none" stroke="#e0483a" stroke-width="2.6" stroke-linejoin="round"/><line x1="128" y1="78" x2="115" y2="71" stroke="#e0483a" stroke-width="1.5"/><line x1="140" y1="102" x2="155" y2="98" stroke="#e0483a" stroke-width="1.5"/>',
+  '찍힘':'<ellipse cx="150" cy="90" rx="40" ry="26" fill="#20242b" opacity=".5"/><ellipse cx="150" cy="90" rx="22" ry="14" fill="#12151b" opacity=".6"/><ellipse cx="143" cy="83" rx="7" ry="4" fill="#6b7481" opacity=".5"/>',
+  '마모':'<g stroke="#c2cad6" stroke-width="1.6" opacity=".55">'+[0,1,2,3,4,5].map(i=>'<line x1="'+(112+i*12)+'" y1="66" x2="'+(132+i*12)+'" y2="116"/>').join('')+'</g>',
+  '손상':'<polygon points="116,70 150,62 184,84 168,116 126,110" fill="#20242b" opacity=".5" stroke="#e0483a" stroke-width="1.6"/>',
+  '천공':'<circle cx="150" cy="90" r="20" fill="#0e1116"/><circle cx="150" cy="90" r="20" fill="none" stroke="#e0483a" stroke-width="2"/><circle cx="143" cy="83" r="5" fill="#39414c"/>',
+  '긁힘':'<g stroke="#c2cad6" stroke-width="1.4" opacity=".5">'+[0,1,2].map(i=>'<line x1="112" y1="'+(72+i*16)+'" x2="196" y2="'+(64+i*16)+'"/>').join('')+'</g>',
+  '_default':'<rect x="122" y="74" width="58" height="34" rx="4" fill="#20242b" opacity=".4"/>'
+};
+function evImage(defect){
+  let inner;
+  if(defect==='부식'){ inner='<img src="assets/corrosion_al.jpg" style="width:100%;height:100%;object-fit:cover">'; }
+  else { inner='<svg viewBox="0 0 320 170" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="display:block">'
+    +'<defs><linearGradient id="mtl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a515b"/><stop offset="1" stop-color="#333940"/></linearGradient></defs>'
+    +'<rect width="320" height="170" fill="url(#mtl)"/><line x1="0" y1="46" x2="320" y2="46" stroke="#2c323a" stroke-width="2"/>'
+    +[40,120,200,280].map(x=>'<circle cx="'+x+'" cy="24" r="4" fill="#5a626d"/><circle cx="'+x+'" cy="24" r="2" fill="#3c424b"/>').join('')
+    +(DEFECT_SVG[defect]||DEFECT_SVG._default)+'</svg>'; }
+  return '<div style="position:relative;height:160px;border-radius:8px;overflow:hidden;background:#333940">'+inner
+    +'<div style="position:absolute;left:30%;top:32%;width:40%;height:34%;border:2px solid #ff5a45;border-radius:4px"></div>'
+    +'<div style="position:absolute;left:30%;top:calc(32% - 16px);font-size:9px;font-weight:700;color:#fff;background:#e05243;padding:1px 6px;border-radius:3px">이상 후보 · '+defect+'</div></div>';
+}
 function viewKnowledge(){
   if(!S.cases) return '<p style="color:var(--dim)"><span class="spin"></span> 케이스 불러오는 중…</p>';
   const all=S.cases.cases||[];
@@ -350,10 +372,8 @@ function viewKnowledge(){
   const detail = sel? `<div class="card" style="border-color:#c9d6ec;position:sticky;top:0">
       <div class="ch" style="background:#f7fafe"><b class="mono" style="color:var(--acc)">${sel.id}</b><small>${sel.at||''} · ${sel.by}</small><div style="flex:1"></div><span onclick="pick(null)" style="cursor:pointer;color:#8b95a5">✕</span></div>
       <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-        <div style="position:relative;height:150px;border-radius:8px;background:repeating-linear-gradient(45deg,#dfe5ee 0 10px,#e9edf4 10px 20px);display:flex;align-items:center;justify-content:center">
-          <div class="mono" style="font-size:10.5px;color:#7d8aa0;background:rgba(255,255,255,.8);padding:3px 9px;border-radius:4px">evidence — ${sel.part}</div>
-          <div style="position:absolute;left:26%;top:30%;width:80px;height:52px;border:2px solid #e05243;border-radius:4px"></div>
-          <div style="position:absolute;left:26%;top:calc(30% - 16px);font-size:9px;font-weight:700;color:#fff;background:#e05243;padding:1px 6px;border-radius:3px">이상 후보</div></div>
+        ${evImage(sel.defect)}
+        ${sel.src!=='외부사례'?`<div style="background:#eef3fb;border:1px solid #d7e2f2;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2);font-weight:700">담당 정비사</div><div style="font-size:12.5px;font-weight:700;margin-top:3px">${sel.tech||sel.by||'—'}${sel.grade?` <span class="badge b-blue" style="font-size:9px">${sel.grade}</span>`:''}${sel.robot?` <span class="mono" style="font-size:10.5px;color:var(--dim);font-weight:400">🤖 ${sel.robot}</span>`:''}</div></div>`:''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
           <div style="background:#f7f9fc;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2);font-weight:700">판정 VERDICT</div><div style="font-size:12.5px;font-weight:700;margin-top:3px">${sel.verdict}</div></div>
           <div style="background:#f7f9fc;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2);font-weight:700">촬영 출처</div><div style="font-size:12px;margin-top:4px;color:#41506b">${sel.capture}</div></div></div>
