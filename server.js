@@ -616,6 +616,17 @@ function evChecks(w){
            wo: 1 };                          // Work Card 자동 연결
 }
 const EVNAME={photo:'사진',verdict:'판정',action:'조치',wo:'기록'};
+// 결함 유형별 실제 사진 — assets/defects/ 폴더를 스캔해 사례마다 다르게 배정
+//   파일명 규칙: {key}-{번호}.jpg  (key: corrosion·crack·dent·wear·damage·puncture·scratch)
+function scanDefectImages(){
+  try{
+    const dir=path.join(ROOT,'assets','defects'), map={};
+    fs.readdirSync(dir).forEach(f=>{ const m=/^([a-z]+)-\d+\.(jpe?g|png|webp)$/i.exec(f);
+      if(m){ const k=m[1].toLowerCase(); (map[k]=map[k]||[]).push('assets/defects/'+f); } });
+    Object.values(map).forEach(a=>a.sort());
+    return map;
+  }catch(e){ return {}; }   // 폴더 없으면 빈 맵 → 프론트가 스키매틱으로 대체
+}
 // 케이스의 담당 정비사 유추 — 저장된 owner 우선, 없으면 case id(V-W-{n}xx)에서
 function caseTech(v){
   let name = (v.owner || v.by || '');
@@ -925,7 +936,8 @@ const server = http.createServer(async (req,res)=>{
           checks, complete:false };
       });
       return json(res, { count:verified.length+external.length,
-        verifiedN:verified.length, externalN:external.length, cases:[...verified, ...external] });
+        verifiedN:verified.length, externalN:external.length, cases:[...verified, ...external],
+        defectImages: scanDefectImages() });   // 사례별 실사진 배정용 (폴더 스캔)
     }catch(e){ return json(res, {error:e.message}, 500); }
   }
 

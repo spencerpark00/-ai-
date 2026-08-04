@@ -342,9 +342,13 @@ const DEFECT_SVG={
   '긁힘':'<g stroke="#c2cad6" stroke-width="1.4" opacity=".5">'+[0,1,2].map(i=>'<line x1="112" y1="'+(72+i*16)+'" x2="196" y2="'+(64+i*16)+'"/>').join('')+'</g>',
   '_default':'<rect x="122" y="74" width="58" height="34" rx="4" fill="#20242b" opacity=".4"/>'
 };
-function evImage(defect){
+const DEFECT_KEY_FE={부식:'corrosion',균열:'crack',찍힘:'dent',마모:'wear',손상:'damage',천공:'puncture',긁힘:'scratch'};
+function hashId(s){ let h=0; s=String(s||''); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; }
+function evImage(defect, caseId){
+  const pool=((S.cases&&S.cases.defectImages)||{})[DEFECT_KEY_FE[defect]]||[];
   let inner;
-  if(defect==='부식'){ inner='<img src="assets/corrosion_al.jpg" style="width:100%;height:100%;object-fit:cover">'; }
+  if(pool.length){ const src=pool[hashId(caseId)%pool.length]; inner='<img src="'+src+'" style="width:100%;height:100%;object-fit:cover">'; }
+  else if(defect==='부식'){ inner='<img src="assets/corrosion_al.jpg" style="width:100%;height:100%;object-fit:cover">'; }
   else { inner='<svg viewBox="0 0 320 170" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="display:block">'
     +'<defs><linearGradient id="mtl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a515b"/><stop offset="1" stop-color="#333940"/></linearGradient></defs>'
     +'<rect width="320" height="170" fill="url(#mtl)"/><line x1="0" y1="46" x2="320" y2="46" stroke="#2c323a" stroke-width="2"/>'
@@ -372,7 +376,7 @@ function viewKnowledge(){
   const detail = sel? `<div class="card" style="border-color:#c9d6ec;position:sticky;top:0">
       <div class="ch" style="background:#f7fafe"><b class="mono" style="color:var(--acc)">${sel.id}</b><small>${sel.at||''} · ${sel.by}</small><div style="flex:1"></div><span onclick="pick(null)" style="cursor:pointer;color:#8b95a5">✕</span></div>
       <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-        ${evImage(sel.defect)}
+        ${evImage(sel.defect, sel.id)}
         ${sel.src!=='외부사례'?`<div style="background:#eef3fb;border:1px solid #d7e2f2;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2);font-weight:700">담당 정비사</div><div style="font-size:12.5px;font-weight:700;margin-top:3px">${sel.tech||sel.by||'—'}${sel.grade?` <span class="badge b-blue" style="font-size:9px">${sel.grade}</span>`:''}${sel.robot?` <span class="mono" style="font-size:10.5px;color:var(--dim);font-weight:400">🤖 ${sel.robot}</span>`:''}</div></div>`:''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
           <div style="background:#f7f9fc;border-radius:8px;padding:9px 11px"><div style="font-size:10px;color:var(--dim2);font-weight:700">판정 VERDICT</div><div style="font-size:12.5px;font-weight:700;margin-top:3px">${sel.verdict}</div></div>
