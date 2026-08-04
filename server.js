@@ -912,7 +912,7 @@ const server = http.createServer(async (req,res)=>{
         return { id: v.id || ('VC-'+String(i+1).padStart(4,'0')), src:'검증사례',
           at: v.at || '', aircraft: v.aircraft || '-', part: v.part || '-', area: v.area||'',
           defect: kor(v.defect), verdict: v.action || '정상 판정',
-          by: t?t.tech:(v.by||'정비사'), tech: t?t.tech:'', robot: t?t.robot:'', grade: t?t.grade:'',
+          by: t?t.id:(v.by||'정비사'), tech: t?t.id:'', robot: t?t.robot:'', grade: t?t.grade:'',
           capture: v.cap==='direct'?'직접 촬영':(v.cap==='robot'?'로봇 촬영':'로봇/직접'),
           poc: v.source==='PoC시연',
           checks, complete: Object.values(checks).every(x=>x) };
