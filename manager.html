@@ -297,17 +297,38 @@ function viewQuality(){
 }
 
 function viewPeople(){
-  return `<div class="rowhead"><div class="h1">인재 <span>People · 사람을 살핀다</span></div></div>
-  <div style="font-size:11px;color:var(--dim2);margin-bottom:14px">모든 수치는 작업 이벤트 파생 — 위치·생체 추적 없음 · 개인 평가 아님 (팀·구간 중심)</div>
+  const d=S.dash, p=d.people||{}, byG=p.byGrade||[], mem=p.members||[], sup=p.rookieSupport||[], cap=p.cap||6;
+  const gcol={'숙련':'#2b5fa8','중급':'#5b7fb5','신입':'#8fa8cc'};
+  const lvchip=g=>({'숙련':'b-blue','중급':'b-gray','신입':'b-amber'}[g]||'b-gray');
+  const stchip=s=>({'작업중':'b-green','자동 진행':'b-green','대기':'b-gray','유휴':'b-gray'}[s]||'b-gray');
+  const loadHtml=byG.map(x=>{ const w=Math.min(100,Math.round(x.load/cap*100));
+    return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:11px">
+      <div style="width:82px;font-size:12px;color:#41506b">${x.grade} <span style="color:var(--dim2);font-size:10px">${x.n}명</span></div>
+      <div style="flex:1;height:16px;background:var(--line2);border-radius:5px;position:relative"><div style="height:16px;border-radius:5px;background:${gcol[x.grade]||'#8fa8cc'};width:${w}%"></div><div style="position:absolute;left:100%;top:-3px;bottom:-3px;width:1.5px;background:#c0392b;opacity:.45"></div></div>
+      <div class="mono" style="width:104px;text-align:right;font-size:11px;color:var(--dim)">평균 미완료 ${x.load}건</div></div>`; }).join('');
+  const memHtml=mem.map(m=>`<tr>
+    <td style="width:146px"><b>${m.tech}</b> <span class="badge ${lvchip(m.grade)}" style="font-size:9px">${m.grade}</span><div class="mono" style="font-size:10px;color:var(--dim2);margin-top:3px">🤖 ${m.robot}</div></td>
+    <td style="text-align:center"><span class="mono" style="font-weight:700">${m.done}</span><div style="font-size:9px;color:var(--dim2)">완료</div></td>
+    <td style="text-align:center"><span class="mono" style="font-weight:700;color:${m.over?'var(--red)':'#41506b'}">${m.wait}</span><div style="font-size:9px;color:var(--dim2)">대기</div></td>
+    <td style="text-align:center"><span class="mono" style="font-weight:700;color:${m.retake?'var(--amber)':'var(--dim2)'}">${m.retake}</span><div style="font-size:9px;color:var(--dim2)">재검사</div></td>
+    <td style="text-align:right"><span class="badge ${stchip(m.active)}">${m.active}</span>${m.over?'<div style="font-size:9px;color:var(--red);font-weight:700;margin-top:3px">과부하</div>':''}</td></tr>`).join('');
+  const supHtml=sup.length?sup.map(s=>`<div style="border:1px solid #dde4ee;border-radius:9px;padding:11px 12px;background:#fafcff;margin-bottom:9px">
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:#e8eefb;color:#2b5fa8;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">${s.tech[0]}</div>
+        <div style="flex:1"><div style="font-size:12.5px;font-weight:700">${s.tech} <span class="badge b-amber" style="font-size:9px">신입</span> <span class="mono" style="font-size:10px;color:var(--dim2)">🤖 ${s.robot}</span></div><div style="font-size:10.5px;color:var(--dim)">${s.reason}</div></div></div>
+      <div style="margin-top:9px;padding-top:9px;border-top:1px solid #e8edf5;font-size:11.5px;color:#41506b">💡 <b>지원 제안</b> — ${s.recommend}</div>
+      <div style="font-size:10px;color:var(--dim2);margin-top:4px">연결 가능 검증사례 ${s.cases!=null?Number(s.cases).toLocaleString():'—'}건 · 지식그래프 기반</div></div>`).join('')
+    :'<div style="padding:16px;text-align:center;color:var(--dim2);font-size:12px">현재 신입 지원 필요 없음</div>';
+  return `<div class="rowhead"><div class="h1">인재 <span>People · 사람을 살핀다 (지원·배분 판단)</span></div></div>
+  <div style="font-size:11px;color:var(--dim2);margin-bottom:14px">작업 이벤트 기반 집계 · 위치·생체 추적 없음 · 개인 평가 아님(지원·재배분 목적)</div>
   <div class="half">
-    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">숙련도별 부하 분포</b> <small style="font-size:11px;color:#8b95a5">과부하 조정 여부 — 배치는 중앙 시스템</small>
-      <div style="margin-top:12px">${[['숙련','2.0건','75%','#2b5fa8'],['중급','1.0건','38%','#5b7fb5'],['신입','0.5건','19%','#8fa8cc']].map(([g,a,w,c])=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:11px"><div style="width:70px;font-size:12px;color:#41506b">${g}</div><div style="flex:1;height:16px;background:var(--line2);border-radius:5px;position:relative"><div style="height:16px;border-radius:5px;background:${c};width:${w}"></div><div style="position:absolute;left:75%;top:-3px;bottom:-3px;width:1.5px;background:#c0392b;opacity:.45"></div></div><div class="mono" style="width:66px;text-align:right;font-size:11.5px;color:var(--dim)">평균 ${a}</div></div>`).join('')}</div>
-      <div style="font-size:10.5px;color:var(--dim2)">붉은 선 = 권장 상한(1인 2건) · 현재 과부하 없음</div></div>
-    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">신입 진행 · 팀 비교</b> <small style="font-size:11px;color:#8b95a5">지원 투입 판단 · 개인 지목 없음</small>
-      <div style="border:1px solid #dde4ee;border-radius:9px;padding:12px 13px;background:#fafcff;margin-top:10px"><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:50%;background:#e8eefb;color:#2b5fa8;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">김</div><div style="flex:1"><div style="font-size:12.5px;font-weight:700">김하늘 <span class="badge b-amber" style="font-size:9px">신입</span></div><div class="mono" style="font-size:10.5px;color:#8b95a5">WO-2607-118 · 동체 하부 외판 점검</div></div><span class="badge b-green">순항 중</span></div>
-        <div style="display:flex;gap:14px;margin-top:11px;padding-top:10px;border-top:1px solid #e8edf5;font-size:11.5px;color:#41506b"><div>연결된 검증사례 <b class="mono">3건</b></div><div>단계 3/12 · 표준 대비 <b>+4분</b></div><div>지원 제안 <b style="color:var(--dim2)">없음</b></div></div></div>
-      <div style="margin-top:12px">${[['A조','3.2h','4%','var(--green)'],['B조','3.5h','6%','var(--amber)']].map(([n,tm,rw,c])=>`<div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #f5f6f9;font-size:12px"><div style="font-weight:700">${n}</div><div><div style="font-size:10px;color:var(--dim2)">평균 완료시간</div><div class="mono" style="font-weight:700;color:#41506b">${tm}</div></div><div><div style="font-size:10px;color:var(--dim2)">재작업률</div><div class="mono" style="font-weight:700;color:${c}">${rw}</div></div></div>`).join('')}</div>
-      <div style="margin-top:12px;padding:11px 12px;background:#f6f9f4;border:1px solid #dbe8d4;border-radius:8px;font-size:11.5px;color:#3d5a34;line-height:1.55"><b>역량 향상</b> — 신입-숙련 작업시간 격차 45%→18% (검증 목표). 검증사례 연결로 신입도 숙련자 수준에 근접.</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">숙련도별 부하 분포</b> <small style="font-size:11px;color:#8b95a5">평균 미완료 vs 권장 상한(${cap}건)</small>
+      <div style="margin-top:12px">${loadHtml||'<div style="color:var(--dim2);font-size:12px">데이터 없음</div>'}</div>
+      <div style="font-size:10.5px;color:var(--dim2)">붉은 선 = 권장 상한 · 초과 시 재배분 검토</div></div>
+    <div class="card"><div class="ch"><b>정비사별 현황</b><small>과부하·유휴 — 재배분/지원 판단</small></div>
+      <table><thead><tr><th>정비사</th><th style="text-align:center">완료</th><th style="text-align:center">대기</th><th style="text-align:center">재검사</th><th style="text-align:right">상태</th></tr></thead><tbody>${memHtml}</tbody></table>
+      <div class="muted">완료·대기·재검사는 정비사 앱 판정에서 실집계</div></div>
+    <div class="card" style="padding:14px 16px"><b style="font-size:13.5px">AI 신입 지원 제안</b> <small style="font-size:11px;color:#8b95a5">지식그래프 연계 · 제안까지(실행은 관리자)</small>
+      <div style="margin-top:10px">${supHtml}</div></div>
   </div>`;
 }
 

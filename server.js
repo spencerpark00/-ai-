@@ -440,7 +440,9 @@ function seedWorks(){
   const arr=[];
   TECHS.forEach((t,ti)=>{
     for(let k=0;k<8;k++){
-      const d=defs[(ti*3+k)%defs.length], done=k<2;
+      // 숙련일수록 더 많이 처리 → 부하(미완료) 차이 발생 (숙련5/중급6/신입7 대기)
+      const doneCut = t.grade==='숙련'?3:(t.grade==='중급'?2:1);
+      const d=defs[(ti*3+k)%defs.length], done=k<doneCut;
       // 증빙 갭 데모용: 일부 완료건은 직접촬영(사진 자동연결 약함), 일부는 재검사(조치 미완)
       const verd = d[1]==='이상없음' ? '정상' : ((ti+k)%4===3 ? '재검사' : (k===0 ? '수리' : '정상'));
       const cap = done ? ((ti+k)%3!==0) : null;   // true=로봇 촬영, false=직접(사진 증빙 누락)
@@ -707,6 +709,29 @@ async function buildDashboard(){
                miss: Object.keys(e.checks).filter(k=>!e.checks[k]).map(k=>EVNAME[k]) }));
   const retakes = done.filter(w=>w.retake).map(w=>({ id:w.id, part:w.part, area:w.area, owner:w.owner, defect:w.defect }));
   const qual = { evTotal:done.length, evComplete, evRate: done.length?Math.round(evComplete/done.length*100):100, evGaps, retakes };
+  // ── 인재(관제): 부하 분포 + 정비사별 현황 + 신입 지원 (실집계)
+  const CAP = 6;   // 1인 권장 미완료 상한
+  const members = TECHS.map(t=>{
+    const mine=W.filter(w=>w.owner===t.id);
+    const wait=mine.filter(w=>w.status!=='완료').length, doneN=mine.length-wait;
+    const rt=mine.filter(w=>w.retake).length;
+    const L=LIVE[t.id];
+    const active = L ? (L.auto?'자동 진행':'작업중') : (wait>0?'대기':'유휴');
+    return { tech:t.id, grade:t.grade, robot:t.robot, done:doneN, wait, retake:rt, active, over: wait>CAP };
+  });
+  const byGrade = ['숙련','중급','신입'].map(g=>{
+    const ms=members.filter(m=>m.grade===g); if(!ms.length) return null;
+    return { grade:g, n:ms.length,
+      load:+(ms.reduce((s,m)=>s+m.wait,0)/ms.length).toFixed(1),
+      done:+(ms.reduce((s,m)=>s+m.done,0)/ms.length).toFixed(1) };
+  }).filter(Boolean);
+  const topDefKor = (gTop&&gTop[0]) ? (KORD[gTop[0].name]||gTop[0].name) : '부식';
+  const rookieSupport = members.filter(m=>m.grade==='신입').map(m=>({
+    tech:m.tech, robot:m.robot,
+    reason: m.retake>0 ? ('재검사 '+m.retake+'건 — 판정 정확도 지원 필요') : ('경험 축적 단계 (완료 '+m.done+'건)'),
+    recommend: topDefKor+' 등 다발 결함의 검증사례·숙련자 판정 이력 연결 추천',
+    cases: gVerified }));
+  const people = { byGrade, members, cap:CAP, rookieSupport };
   // ── 지연·위험 알림 (미완료 긴급)
   const alerts = W.filter(w=>w.status!=='완료'&&w.risk==='긴급')
     .map(w=>({id:w.id, part:w.part, defect:w.defect, risk:w.risk, why:'긴급'}));
@@ -717,7 +742,7 @@ async function buildDashboard(){
   if(roboErr>0) strip.push({label:'🤖 로봇 오류 '+roboErr});
   return {
     generatedAt:new Date().toISOString(),
-    today, ops, bottleneck, defectTop, alerts, strip, suggestions, autoDemo:AUTO, qual,
+    today, ops, bottleneck, defectTop, alerts, strip, suggestions, autoDemo:AUTO, qual, people,
     pairs, fleet: liveFleet(pairs),
     activity: ACTIVITY.slice(0,8),
     hero:{
