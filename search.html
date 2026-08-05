@@ -122,7 +122,7 @@
   <div class="qbar">
     <div class="qrow">
       <button class="mic" id="mic" onclick="startVoice()" title="음성으로 질문">🎙️</button>
-      <input class="qinput" id="q" placeholder="부품·결함을 질문하세요.  예) 동체 외판 부식 / 스트링거 / 좌석 레일"
+      <input class="qinput" id="q" placeholder="부품·결함을 질문하세요.  예) 블레이드 부식 / 베인 / 리딩엣지"
              onkeydown="if(event.key==='Enter')ask()">
       <button class="go" onclick="ask()">검색</button>
     </div>
@@ -196,7 +196,7 @@ async function checkConn(){
     if(Array.isArray(j)){
       c.className='conn on'; c.textContent='● 지식그래프 연결됨 · 부품 '+j.length+'+';
       const box = document.getElementById('presets');
-      const picks = ['동체 외판 부식','스트링거','좌석 레일','프레임','플로어 빔'];
+      const picks = ['블레이드 부식','블레이드 균열','베인','에어포일 찍힘','블레이드 마모'];
       box.innerHTML = picks.map(p=>`<div class="preset" onclick="preset('${p}')">💬 "${p}"</div>`).join('');
     }
   }catch(e){ c.className='conn off'; c.textContent='✗ 서버 미연결'; }
@@ -227,7 +227,7 @@ function noRes(term){
   const n = document.getElementById('nores'); n.style.display='flex';
   document.getElementById('noresTxt').innerHTML =
     '"'+term+'"에 해당하는 부품을 지식그래프에서 찾지 못했습니다.<br>'+
-    '<span style="color:var(--dim2)">현재 PoC 범위는 ATA 53 동체구조입니다. 예: 외판, 스트링거, 프레임, 좌석 레일, 플로어 빔</span>';
+    '<span style="color:var(--dim2)">현재 PoC 범위는 ATA 72 엔진 (HPC 블레이드)입니다. 예: 블레이드, 베인, 에어포일 · 기존 ATA 53 동체구조(외판·스트링거 등)도 계속 조회됩니다</span>';
 }
 
 function render(term, j){
@@ -305,7 +305,7 @@ function render(term, j){
     ${procCards ? `<div class="proccard"><h3 style="font-size:12px;letter-spacing:.5px;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:13px">🛠 정비 절차 · 공구 · 주의사항 <span style="margin-left:auto;color:var(--dim2);font-weight:400;text-transform:none">FAA 핸드북 기반</span></h3>${procCards}</div>` : ''}
     ${generic ? `<div class="genbox">⚠ <b>${j.part}</b>은(는) 여러 계통에 걸쳐 보고되는 <b>총칭 부품</b>입니다(계통 집중도 ${conf}). 정확한 계통은 개별 작업지시의 실제 위치를 따릅니다. <span style="color:var(--dim2)">(설계 결정 D-006)</span></div>`
       : `<div class="safety"><div class="st">⚠️ 주의사항 · 작업 게이트</div>
-        <p>구조 작업 전 <b style="color:var(--txt)">전원 차단·안전조치</b>가 선행됩니다. 사각지대 검사는 로봇 카메라·조명이 보조합니다.</p>
+        <p>분해·거치 상태 확인과 <b style="color:var(--txt)">안전조치</b>가 선행됩니다. 반복 검사는 로봇 카메라·조명이 동일 조건으로 보조합니다.</p>
         <p style="margin-top:8px">🔒 위험등급 <code>상</code> 단계는 정비사 승인 없이 다음 단계로 진행할 수 없습니다 <span style="color:var(--dim2)">(제약 C-07)</span></p></div>`}
     <div class="meta">
       <span class="live">지식그래프 실시간 조회</span>

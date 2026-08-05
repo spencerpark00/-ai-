@@ -86,15 +86,15 @@
   </div>
   <div class="grid">
     <div class="cam">
-      <div class="cam-label"><span class="rec"></span>CAM-01 · 동체 외판 내측 (사각지대)</div>
-      <img class="skin-img" src="assets/corrosion_al.jpg" alt="skin corrosion">
+      <div class="cam-label"><span class="rec"></span>CAM-01 · HPC 블레이드 (스탠드 거치)</div>
+      <img class="skin-img" src="assets/corrosion_al.jpg" alt="corrosion sample">
       <div class="cam-overlay"></div>
       <div class="scanband"></div>
       <div class="bbox2" id="bbox" style="top:30%;left:26%;width:44%;height:52%">
         <span class="bbox-tag" id="bboxTag">CANDIDATE · CORROSION</span>
       </div>
       <div class="cam-meta" id="camMeta"></div>
-      <div class="cam-src">📷 실제 결함 이미지 · Al 공식부식 · Wikimedia Commons (CC BY-SA 4.0)</div>
+      <div class="cam-src">📷 알루미늄 공식부식 · Wikimedia Commons (CC BY-SA 4.0) — 블레이드 결함 이미지 확보 전 대체 표시</div>
     </div>
     <div class="side" id="side">
       <div class="card"><h3>지식그래프 조회 중…</h3></div>
@@ -122,12 +122,12 @@ async function load(){
   if(j.error){document.getElementById('side').innerHTML='<div class="card"><h3>데이터 조회 실패</h3></div>';return;}
   const sc=j.scene||{}, pt=j.part||{};
   const conf=sc.candConf!=null?sc.candConf:0.87;
-  const loc=(sc.fs?('FR'+sc.fs):'')+(sc.str?(' / STR'+sc.str):'');
+  const loc=(sc.fs?('HPC Stg'+sc.fs):'')+(sc.str?(' · BLD-'+sc.str):'');
   const quality=sc.quality!=null?sc.quality:0.92;
 
   document.getElementById('bboxTag').textContent='CANDIDATE · CORROSION  conf '+conf;
   document.getElementById('camMeta').innerHTML=
-    '<span>'+(sc.str?('STR '+sc.str):'STR 29L')+' · '+(sc.fs?('FR '+sc.fs):'FR 73')+'</span>'+
+    '<span>'+(sc.str?('BLD-'+sc.str):'BLD-017')+' · '+(sc.fs?('HPC Stg'+sc.fs):'HPC Stg4')+'</span>'+
     '<span>품질 '+quality+' ✓</span><span>조명 ON · 자세 -12°</span>';
 
   // 부품 결함 분포 (실데이터)
@@ -137,26 +137,26 @@ async function load(){
 
   document.getElementById('side').innerHTML=
     '<div class="card"><h3>🎙️ 음성 지원 정비 챗봇 <span style="margin-left:auto;font-weight:400;text-transform:none;color:var(--dim2)">집=서버 · 접점=정비사 디바이스</span></h3><div class="chat">'+
-      '<div class="msg tech"><div class="av">🧑‍🔧</div><div class="bub">"여기 '+(sc.str||'STR29')+' 부근 촬영해줘"</div></div>'+
-      '<div class="msg ai"><div class="av">🧠</div><div class="bub">검사위치 <code>'+(loc||'FR73 / STR29L')+'</code>로 로봇에 Skill Request 발행. '+(sc.blind?'사각지대라 ':'')+'조명·자세 파라미터를 지식에서 계획했습니다.</div></div>'+
+      '<div class="msg tech"><div class="av">🧑‍🔧</div><div class="bub">"이 블레이드 '+(sc.str?('BLD-'+sc.str):'BLD-017')+' 찍어줘"</div></div>'+
+      '<div class="msg ai"><div class="av">🧠</div><div class="bub">검사위치 <code>'+(loc||'HPC Stg4 · BLD-017')+'</code>로 로봇에 Skill Request 발행. 요구컷(리딩엣지·압력면·흡입면)과 거리·조명 파라미터를 지식에서 계획했습니다. <b>같은 조건으로 반복</b>되므로 장마다 비교가 됩니다.</div></div>'+
       '<div class="msg tech"><div class="av">🧑‍🔧</div><div class="bub">"이 부품 전에 문제 있었어?"</div></div>'+
-      '<div class="msg ai"><div class="av">🧠</div><div class="bub">동체 외판(SKIN)은 <code>'+distTxt+'</code> 반복 부위입니다. 지식그래프 조회 결과입니다.</div></div>'+
+      '<div class="msg ai"><div class="av">🧠</div><div class="bub">HPC 블레이드(BLADE)는 <code>'+distTxt+'</code> 반복 보고 부위입니다. 지식그래프 조회 결과입니다.</div></div>'+
     '</div><p style="font-size:10.5px;color:var(--dim2);margin-top:8px;line-height:1.45">🧠 두뇌는 KT 클라우드 · 로봇은 <b>대화 접점이 아니라 촬영 엔드포인트</b></p></div>'+
     '<div class="card"><h3>🔍 이상 후보 탐지 <span style="margin-left:auto;font-weight:400;text-transform:none;color:var(--dim2)">AI 비전</span></h3>'+
       '<div class="cand"><div class="box">🟠</div><div class="info"><div class="t">CORROSION 부식 후보</div>'+
-      '<div class="s">'+(loc||'STR29L · FR73')+' · bbox 표시됨</div></div>'+
+      '<div class="s">'+(loc||'HPC Stg4 · BLD-017')+' · bbox 표시됨</div></div>'+
       '<div class="conf"><b>'+conf+'</b><span>신뢰도</span></div></div>'+
       '<div class="note">⚠️ AI·로봇은 <b>결함후보</b>까지만 생성합니다. 최종 결함 판정은 <b>정비사</b>가 수행합니다. <span style="color:var(--dim2)">(C-12)</span></div>'+
       '<div class="btns"><button class="btn ok">✓ 이상 (판정)</button><button class="btn">정상</button><button class="btn no">재검사</button></div></div>'+
     '<div class="card"><h3>📋 Work Card 자동 기록</h3>'+
-      '<div class="wc-row"><span>검사 위치</span><b>'+(loc||'FR73 / STR29L')+'</b></div>'+
+      '<div class="wc-row"><span>검사 위치</span><b>'+(loc||'HPC Stg4 · BLD-017')+'</b></div>'+
       '<div class="wc-row"><span>촬영 증빙</span><b>EV-01.jpg <span class="auto">자동 연결</span></b></div>'+
       '<div class="wc-row"><span>촬영 출처</span><b>🤖 로봇 <span class="auto">기록됨</span></b></div>'+
       '<div class="wc-row"><span>품질점수</span><b>'+quality+' <span class="auto">기준 통과</span></b></div>'+
       '<div class="wc-row"><span>후보 결과</span><b>부식 '+conf+'</b></div>'+
       '<div class="wc-row"><span>정비사 판정</span><b style="color:var(--warn)">대기 중</b></div></div>';
 
-  document.getElementById('srcMeta').innerHTML='<b>검사위치</b> '+(sc.area||'동체 외판 내측')+' · 지식그래프 실시간';
+  document.getElementById('srcMeta').innerHTML='<b>검사위치</b> '+(sc.area||'HPC 블레이드 (분해·스탠드 거치)')+' · 지식그래프 실시간';
 }
 load();
 </script>
