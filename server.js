@@ -789,7 +789,8 @@ async function buildDashboard(){
 
 // ── 라우팅 ─────────────────────────────────────────────────
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css',
-  '.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml'};
+  '.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml',
+  '.mp4':'video/mp4','.webm':'video/webm'};   // 시뮬 영상 (assets/sim.mp4)
 
 const server = http.createServer(async (req,res)=>{
   const u = new URL(req.url, 'http://localhost');
