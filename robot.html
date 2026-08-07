@@ -27,6 +27,8 @@
   .rec{width:8px;height:8px;border-radius:50%;background:var(--dang);animation:blink 1.2s infinite}
   @keyframes blink{50%{opacity:.3}}
   .skin-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.82) contrast(1.05) saturate(.9)}
+  .cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;filter:brightness(.88) contrast(1.03)}
+  .simtag{position:absolute;bottom:44px;right:14px;z-index:5;font-family:monospace;font-size:9.5px;color:#04222b;background:var(--acc2);padding:2px 8px;border-radius:4px;font-weight:700}
   .cam-overlay{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 40% 45%,transparent 40%,rgba(5,8,13,.55) 100%);box-shadow:inset 0 0 90px rgba(5,8,13,.7)}
   .scanband{position:absolute;left:0;right:0;height:70px;z-index:3;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(34,211,238,.28),transparent);animation:scan 3.2s ease-in-out infinite}
   @keyframes scan{0%,100%{top:8%}50%{top:78%}}
@@ -88,6 +90,9 @@
     <div class="cam">
       <div class="cam-label"><span class="rec"></span>CAM-01 · HPC 블레이드 (스탠드 거치)</div>
       <img class="skin-img" src="assets/corrosion_al.jpg" alt="corrosion sample">
+      <!-- 시뮬 연동: assets/sim.mp4 를 넣으면 자동 재생 (없으면 정지 이미지 폴백). 규격: 풀HD·1배속·H.264 -->
+      <video id="simVid" muted playsinline loop preload="none" style="display:none"></video>
+      <span class="simtag" id="simTag" style="display:none">PyBullet 시뮬레이션</span>
       <div class="cam-overlay"></div>
       <div class="scanband"></div>
       <div class="bbox2" id="bbox" style="top:30%;left:26%;width:44%;height:52%">
@@ -110,6 +115,19 @@
 </div>
 <script>
 const KOR={CORRODED:'부식',CRACKED:'균열',DAMAGED:'손상',DENTED:'찍힘'};
+// 시뮬 영상 연동 — assets/sim.mp4 가 있으면 카메라 화면을 PyBullet 영상으로, 없으면 정지 이미지 폴백
+(function(){
+  const v=document.getElementById('simVid'); if(!v) return;
+  v.onloadeddata=function(){
+    v.style.display='block';
+    document.getElementById('simTag').style.display='block';
+    const src=document.querySelector('.cam-src');
+    if(src) src.textContent='🎬 PyBullet 시뮬레이션 — 로봇 촬영 경로 재현 (실기 연동 전 단계)';
+    v.play().catch(function(){});
+  };
+  v.onerror=function(){ v.style.display='none'; };
+  v.setAttribute('src','assets/sim.mp4'); v.load();
+})();
 async function checkConn(){
   const c=document.getElementById('conn');
   try{const r=await fetch('/api/parts');const j=await r.json();
