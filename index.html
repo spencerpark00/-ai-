@@ -192,7 +192,7 @@
 <!-- 로봇 촬영 모달 -->
 <div class="modal" id="modal"><div class="msheet">
   <div class="sh">🤖 로봇 촬영 <span style="font-size:11px;color:var(--dim);font-weight:400" id="mLoc"></span><span class="x" onclick="closeModal()">✕</span></div>
-  <div class="cam"><div class="lbl"><span class="rc"></span>CAM-01 · 사각지대</div><img src="assets/corrosion_al.jpg" alt="검사"><div class="ov"></div><div class="scan"></div><div class="bb"><span class="bbt" id="bbt">CORROSION</span></div></div>
+  <div class="cam"><div class="lbl"><span class="rc"></span>CAM-01 · HPC 블레이드</div><img src="assets/corrosion_al.jpg" alt="검사"><div class="ov"></div><div class="scan"></div><div class="bb"><span class="bbt" id="bbt">CORROSION</span></div></div>
   <div class="mbody" id="mBody"></div>
 </div></div>
 
@@ -266,7 +266,7 @@ function pickWork(id){
   CURWORK=WORKS.find(w=>w.id===id); if(!CURWORK)return;
   FINDING=null; captureBy='robot';
   document.getElementById('woTitle').textContent=CURWORK.part+' '+CURWORK.defect+' 검사';
-  document.getElementById('woMeta').innerHTML='기체 <b>'+CURWORK.ac+'</b> · 부위 <b>'+CURWORK.part+' '+CURWORK.area+'</b>';
+  document.getElementById('woMeta').innerHTML='엔진 <b>'+CURWORK.ac+'</b> · 부위 <b>'+CURWORK.part+' '+CURWORK.area+'</b>';
   STEP=1; renderProg(); renderStage();
   reportProgress(1);   // 작업 배정 → 로봇 이동 (관리자 보드 실시간)
 }
@@ -296,17 +296,18 @@ function renderStage(){
     const w=CURWORK||{};
     b.innerHTML='<div class="stage"><div class="back" onclick="showList()">← 작업 목록</div>'+
       '<div class="lead">이 작업을 확인하고 시작하세요.</div>'+
-      '<div class="wocard"><div class="t">작업 '+(w.id||'')+'</div><h2>'+(w.part||'SKIN')+' '+(w.defect||'외관')+' 검사</h2>'+
-      '<div class="row"><span>기체</span><b>'+(w.ac||'EMB ERJ190')+'</b></div>'+
-      '<div class="row"><span>검사 부위</span><b>'+(w.part||'SKIN')+' · '+(w.area||'FR73/STR29L')+'</b></div>'+
+      '<div class="wocard"><div class="t">작업 '+(w.id||'')+'</div><h2>'+(w.part||'BLADE')+' '+(w.defect||'외관')+' 검사</h2>'+
+      '<div class="row"><span>엔진</span><b>'+(w.ac||'CFM56-7B')+'</b></div>'+
+      '<div class="row"><span>검사 부위</span><b>'+(w.part||'BLADE')+' · '+(w.area||'HPC Stg4 · BLD-017')+'</b></div>'+
       '<div class="row"><span>예상 위험도</span><b>'+(w.risk||'주의')+'</b></div>'+
       '<span class="pri">우선순위 '+(w.risk==='긴급'?'긴급':'높음')+'</span></div>'+
       '<button class="btn main" onclick="go(2)">작업 시작 →</button></div>';
   }
   else if(STEP===2){
-    b.innerHTML='<div class="stage"><div class="lead">검사할 곳은 <b>손이 닿기 어려운 사각지대</b>입니다.<br>로봇에게 촬영을 맡기거나 직접 촬영하세요.</div>'+
-      '<div class="reqcuts"><div class="t">📷 촬영할 부위</div>'+
-      '<div class="cut">동체 외판 내측 <span class="lc">FR73 / STR29L</span></div></div>'+
+    const w2=CURWORK||{};
+    b.innerHTML='<div class="stage"><div class="lead">이 검사는 <b>수백 장을 같은 조건으로 촬영·기록</b>해야 합니다.<br>로봇에 맡기면 각도·거리·조명이 일정하게 유지됩니다.</div>'+
+      '<div class="reqcuts"><div class="t">📷 촬영할 부위 — 요구컷 3</div>'+
+      '<div class="cut">리딩엣지 · 압력면 · 흡입면 <span class="lc">'+(w2.part||'BLADE')+' '+(w2.area||'HPC Stg4 · BLD-017')+'</span></div></div>'+
       '<button class="btn robot" onclick="openRobot(\'robot\')">🤖 로봇에게 촬영 맡기기</button>'+
       '<button class="btn ghost" onclick="openRobot(\'direct\')">📷 직접 촬영·업로드</button>'+
       '<div class="caphint">💡 "여기 찍어줘"라고 말해도 됩니다</div></div>';
@@ -317,7 +318,7 @@ function renderStage(){
     b.innerHTML='<div class="stage"><div class="done-c"><div class="ic">✅</div><h2>작업 기록 완료</h2>'+
       '<p>검사 결과가 자동 저장되고<br><b>관리자 대시보드에 실시간 반영</b>됐어요.</p></div>'+
       '<div class="recbox">'+
-      '<div class="row"><span>작업</span><b>'+(w.id||'')+' · '+(w.part||'SKIN')+' '+(w.area||'FR73/STR29L')+'</b></div>'+
+      '<div class="row"><span>작업</span><b>'+(w.id||'')+' · '+(w.part||'BLADE')+' '+(w.area||'HPC Stg4 · BLD-017')+'</b></div>'+
       '<div class="row"><span>촬영 방법</span><b>'+(captureBy==='direct'?'📷 직접':'🤖 로봇')+' <span class="auto">기록됨</span></b></div>'+
       '<div class="row"><span>발견</span><b>'+(f.kor||w.defect||'부식')+' · '+(f.conf||'0.87')+'</b></div>'+
       '<div class="row"><span>정비사 판정</span><b style="color:'+(f.jcol||'var(--dang)')+'">'+(f.judge||'수리')+'</b></div>'+
@@ -331,7 +332,7 @@ function renderResult(){
   const f=FINDING||{cond:'CORRODED',conf:'0.87'};
   const rk=RISK[f.cond]||['org','정비 필요',''];
   const kor=KOR[f.cond]||'부식';f.kor=kor;
-  const loc=(CURWORK&&CURWORK.area)||'FR73 / STR29L';
+  const loc=(CURWORK&&CURWORK.area)||'HPC Stg4 · BLD-017';
   const capLead = captureBy==='direct' ? '촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>' : '로봇이 촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>';
   document.getElementById('body').innerHTML='<div class="stage">'+
     '<div class="lead">'+capLead+'<br>결과를 확인하고 판정하세요.</div>'+
@@ -339,7 +340,7 @@ function renderResult(){
       '<div class="risk '+rk[0]+'"><div class="lv">'+(rk[0]==='red'?'🔴':(rk[0]==='org'?'🟠':(rk[0]==='yel'?'🟡':'🟢')))+' '+rk[1]+'</div><div class="sub">'+rk[2]+'</div></div>'+
       '<div class="rbody">'+
         '<div class="row"><span>결함 종류</span><b class="big">'+kor+' ('+f.cond+')</b></div>'+
-        '<div class="row"><span>위치</span><b>동체 외판 · '+loc+'</b></div>'+
+        '<div class="row"><span>위치</span><b>'+((CURWORK&&CURWORK.part)||'BLADE')+' · '+loc+'</b></div>'+
         '<div class="row"><span>다음 조치</span><b>부식 제거·처리 (검사 절차 아래)</b></div>'+
         '<div class="row"><span>예상 소요</span><b>약 25분</b></div>'+
       '</div></div>'+
@@ -359,7 +360,7 @@ function renderResult(){
 async function loadDrill(){
   // 과거 사례 + 절차를 지식그래프에서
   try{
-    const r=await fetch('/api/query?q='+encodeURIComponent((CURWORK&&CURWORK.part)||'SKIN'));const j=await r.json();
+    const r=await fetch('/api/query?q='+encodeURIComponent((CURWORK&&CURWORK.part)||'BLADE'));const j=await r.json();
     const d=j.data||{};const cases=(d.cases||[]).filter(c=>c.sum).slice(0,2);
     const procs=(j.procedures||[]).slice(0,2);
     document.getElementById('d1').innerHTML=(cases.length?cases.map(c=>'<div class="ev"><div class="eh"><span class="ac">'+(KOR[c.cond]||c.cond)+' 과거 사례</span><span class="lc">'+(c.fs?'FR'+c.fs:'')+(c.str?' / STR'+c.str:'')+'</span></div><div class="tx">"'+(c.sum||'').slice(0,110)+'…"</div><div class="sc">📄 실제 정비 보고 · '+(c.ac||'-')+'</div></div>').join(''):'<p style="font-size:11px;color:var(--dim2)">유사 사례 조회 중…</p>')+
@@ -380,7 +381,7 @@ function openRobot(by){
   captureBy = by || 'robot';
   const m=document.getElementById('modal');m.classList.add('show');
   document.querySelector('#modal .sh').firstChild.textContent = captureBy==='direct' ? '📷 직접 촬영 ' : '🤖 로봇 촬영 ';
-  document.getElementById('mLoc').textContent=(CURWORK&&CURWORK.area)||'FR73/STR29L';
+  document.getElementById('mLoc').textContent=(CURWORK&&CURWORK.area)||'HPC Stg4 · BLD-017';
   const msg = captureBy==='direct' ? '촬영·업로드 중…' : '로봇 이동·조명·촬영 중…';
   document.getElementById('mBody').innerHTML='<div style="color:var(--dim2);font-size:12.5px;padding:12px"><span class="spin"></span> '+msg+'</div>';
   fetch('/api/robot').then(r=>r.json()).then(j=>{
@@ -439,7 +440,7 @@ function doAsk2(){
   if(/찍어|촬영|스캔|카메라/.test(term)){openRobot();return;}
   askServer(term);
 }
-let lastPart='SKIN';
+let lastPart='BLADE';
 let chatHist=[];   // 최근 대화 [{role:'user'|'bot', text}] — 서버로 보내 맥락 유지
 async function doAsk(){
   const inp=document.getElementById('ask');const term=inp.value.trim();if(!term)return;inp.value='';

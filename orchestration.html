@@ -81,7 +81,7 @@
 <div class="device">
   <div class="top">
     <div class="logo"><span class="dot"></span>MRO Copilot <small>실행 오케스트레이션 · 12단계</small></div>
-    <div class="wo"><span id="woLabel">사각지대 외관검사</span><span id="conn" class="conn off">연결 확인 중…</span></div>
+    <div class="wo"><span id="woLabel">HPC 블레이드 외관검사</span><span id="conn" class="conn off">연결 확인 중…</span></div>
   </div>
   <div class="nav">
     <a href="/">① 정비사 단말</a>
@@ -111,8 +111,8 @@ const STEPS=[
  {n:2, name:'작업 수락', who:'h', hitl:1, desc:'정비사가 [작업 수락] → Work Order ‘진행’ 전이.'},
  {n:3, name:'절차·주의사항 제시 + 상시 질의', who:'a', loc:'cloud', desc:'Knowledge Agent가 작업지시 기반 절차·주의사항 검색. <b>음성 지원 정비 챗봇</b>이 이 시점부터 작업 전 구간 상시 활성 (집=서버, 접점=정비사 디바이스).'},
  {n:4, name:'작업 분해·주체 후보 제시', who:'a', loc:'cloud', j:'⓪', jdesc:'작업 해석·분해', desc:'Work Order → Task Step 분해, 각 단계에 수행주체 후보(정비사/AI/로봇) 부여.', gate:['pass','판단 ⓪ 작업 해석·분해','단계가 하드코딩이 아니라 <b>절차 지식에서 생성</b>된다 — 작업 종류가 바뀌면 단계 구성이 바뀐다.']},
- {ph:'B. 촬영 실행', n:5, name:'촬영 명령 (실행 게이트 + 지식 파라미터)', who:'h', hitl:1, loc:'split', j:'①', jdesc:'실행 게이트', desc:'정비사가 부위 촬영을 로봇에 지시하거나 직접 촬영 선택.', gate:['block','판단 ① 실행 게이트 · 계획 Cloud / 검증 Edge','온톨로지에서 부위의 <b>촬영 스펙(접근방향·요구각도·조명)</b>을 읽어 Skill Request 파라미터로 변환. — 사람은 부위만 말하고, 어떻게 찍는지는 지식이 계획한다.'], branch:1},
- {n:6, name:'촬영 수행 (병행 작업)', who:'r', loc:'edge', desc:'(로봇) 이동·자세·조명·촬영 → Execution Event 보고. (직접) 정비사가 플랫폼 카메라·스마트폰 촬영. <b>정비사는 로봇을 기다리지 않는다</b> — 다른 Task Step 병행.'},
+ {ph:'B. 촬영 실행', n:5, name:'촬영 명령 (실행 게이트 + 지식 파라미터)', who:'h', hitl:1, loc:'split', j:'①', jdesc:'실행 게이트', desc:'정비사가 부위 촬영을 로봇에 지시하거나 직접 촬영 선택.', gate:['block','판단 ① 실행 게이트 · 계획 Cloud / 검증 Edge','온톨로지에서 부위의 <b>촬영 스펙(요구컷 리딩엣지·압력면·흡입면, 작동거리, 조명)</b>을 읽어 Skill Request 파라미터로 변환. — 사람은 부위만 말하고, 어떻게 찍는지는 지식이 계획한다. 수백 장이 <b>같은 조건</b>으로 남는 근거.'], branch:1},
+ {n:6, name:'촬영 수행 (병행 작업)', who:'r', loc:'edge', desc:'(로봇) 이동·자세·조명·촬영 → Execution Event 보고. (직접) 정비사가 플랫폼 카메라·스마트폰 촬영. <b>정비사는 로봇을 기다리지 않는다</b> — 다음 블레이드 거치·육안 선별을 병행.'},
  {n:7, name:'품질 확인·재촬영 / 로봇 예외', who:'a', loc:'edge', j:'②③', jdesc:'품질검증·수동전환', desc:'촬영물은 출처 무관 Evidence로 등록·품질 검사.', gate:['block','판단 ② 품질검증(Edge 루프) · 판단 ③ 수동전환','미달 사유를 <b>파라미터에 보정</b>해 자동 재촬영(단순 retry 아님). 상한 초과·로봇 오류 → 안전 정지 후 직접 촬영 전환. <b>로봇이 죽어도 작업은 죽지 않는다.</b>']},
  {ph:'C. 판정·전이', n:8, name:'분석 결과·유사 사례 제시', who:'a', loc:'cloud', desc:'비전 AI가 이상 <b>후보</b> 마킹(판정 아님). 그 사진이 임베딩 검색 입력이 되어 유사 사례 제시.'},
  {n:9, name:'정비사 판정', who:'h', hitl:1, desc:'정비사가 정상/이상/재검사 판정 → Human Decision 기록. (비전 AI는 후보까지만 — HITL)'},
@@ -164,7 +164,7 @@ async function loadSide(){
     '<p style="font-size:11px;color:var(--dim);margin-top:9px;line-height:1.5">AI 후보가 정비사 판정을 거쳐야만 결함으로 확정됨 <span style="color:var(--dim2)">(9→10단계 실증)</span></p></div>';}
   h+='<div class="card"><h3>3층 판단 배치</h3>'+
     '<div class="layer"><span class="ic">🤖</span><div><b style="color:var(--robot)">로봇 제어기(STEP)</b><span>반사신경 — 충돌 정지는 로봇 안에서 끝</span></div></div>'+
-    '<div class="layer"><span class="ic">⚡</span><div><b style="color:var(--edge)">격납고 Edge</b><span>검증 — 0.1초·안전·원본 데이터. 판단 ①검증·②·③정지</span></div></div>'+
+    '<div class="layer"><span class="ic">⚡</span><div><b style="color:var(--edge)">정비 샵 Edge</b><span>검증 — 0.1초·안전·원본 데이터. 판단 ①검증·②·③정지</span></div></div>'+
     '<div class="layer"><span class="ic">☁</span><div><b style="color:var(--cloud)">KT Cloud</b><span>판단력 — 지식·작업 전체. 판단 ⓪①계획·④⑤</span></div></div>'+
     '<p style="font-size:11px;color:var(--txt);margin-top:9px;line-height:1.5"><b>Edge는 반사신경, Cloud는 판단력.</b> 통신이 끊겨도 Edge는 스스로 안전하게 멈춘다.</p></div>';
   h+='<div class="card"><h3>⚠ 예외 복구 (필수 3종)</h3>'+

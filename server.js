@@ -72,6 +72,10 @@ function slangHits(q){
 
 // ── 한국어/구어 → 부품명 사전 (자연어 매칭) ────────────────
 const SYNONYM = {
+  // 엔진 (ATA 72) — D-008 대표 시나리오: 오버홀 중 분해된 HPC 블레이드 외관검사
+  '블레이드':'BLADE','blade':'BLADE','에어포일':'BLADE','airfoil':'BLADE','날개깃':'BLADE',
+  '베인':'VANE','vane':'VANE','정익':'VANE',
+  // 기체 구조 (ATA 53) — 기존 자산. 별칭 유지: 축적된 지식그래프 검색 호환
   '외판':'SKIN','스킨':'SKIN','skin':'SKIN','표피':'SKIN','판':'SKIN',
   '스트링거':'STRINGER','stringer':'STRINGER','세로재':'STRINGER',
   '프레임':'FRAME','frame':'FRAME','골조':'FRAME',
@@ -368,8 +372,8 @@ function llmComplete(system, turns){
 async function buildContext(q){
   const hits = slangHits(q);
   // Neo4j 죽어있어도 LLM은 호출되게 — 각 조회를 개별 try/catch로 감쌈
-  let part='SKIN', data=null, procs=[];
-  try{ part = await resolvePart(q) || 'SKIN'; }catch(e){}
+  let part='BLADE', data=null, procs=[];
+  try{ part = await resolvePart(q) || 'BLADE'; }catch(e){}
   try{ data = (await cypher(Q_PART, {part}))[0] || null; }catch(e){}
   try{ procs = await cypher(Q_PROCEDURE, {part}); }catch(e){}
   const L=[];
@@ -430,13 +434,16 @@ const techOf = id => TECHS.find(t=>t.id===id) || null;
 //   정비사 1인당 8건 생성 (앞 2건 완료 baseline, 나머지 6건 대기) — 시연 깊이 확보
 function seedWorks(){
   const defs=[
-    ['SKIN','부식','주의',160],['STRINGER','균열','긴급',150],['PANEL','찍힘','주의',95],
-    ['TRACK','마모','주의',120],['SKIN','균열','긴급',150],['STRINGER','부식','주의',130],
-    ['PANEL','이상없음','정상',90],['SKIN','손상','주의',145],
+    ['BLADE','부식','주의',160],['BLADE','균열','긴급',150],['BLADE','찍힘','주의',95],
+    ['VANE','찍힘','주의',120],['BLADE','균열','긴급',150],['VANE','부식','주의',130],
+    ['BLADE','이상없음','정상',90],['BLADE','마모','주의',145],
   ];
-  const acs=['B777','A321','B737','A320','EMB ERJ190'];
-  const frs=['FR52/STR14R','FR61/STR22L','FR40/STR08R','FR73/STR29L','FR58/STR19R',
-             'FR45/STR16L','FR33/STR11L','FR67/STR24R','FR51/STR20R','FR39/STR06L'];
+  // 오버홀 대상 엔진 (분해 상태로 샵 입고) — 기체가 아니라 엔진 단위로 작업이 배정됨
+  const acs=['CFM56-7B','V2500-A5','GE90-115B','CF34-10E','LEAP-1B'];
+  // 검사 위치 = HPC 스테이지 · 블레이드 개체 ID
+  const frs=['HPC Stg3 · BLD-012','HPC Stg4 · BLD-017','HPC Stg4 · BLD-042','HPC Stg5 · BLD-008',
+             'HPC Stg3 · BLD-031','HPC Stg6 · BLD-023','HPC Stg5 · BLD-055','HPC Stg4 · BLD-061',
+             'HPC Stg6 · BLD-004','HPC Stg3 · BLD-049'];
   const arr=[];
   TECHS.forEach((t,ti)=>{
     for(let k=0;k<8;k++){
@@ -832,8 +839,8 @@ const server = http.createServer(async (req,res)=>{
       }
       const intent = classifyIntent(q);        // ① 의도 (규칙)
       // ② 지식 조회 — Neo4j 죽어있어도 500 대신 빈 데이터로 우아하게 처리
-      let part='SKIN', data=null, procs=[];
-      try{ part = await resolvePart(q) || 'SKIN'; }catch(e){}
+      let part='BLADE', data=null, procs=[];
+      try{ part = await resolvePart(q) || 'BLADE'; }catch(e){}
       try{ data = (await cypher(Q_PART, {part}))[0] || null; }catch(e){}
       try{ procs = await cypher(Q_PROCEDURE, {part}); }catch(e){}
       const answer = composeAnswer(intent, part, data, procs);  // ③ 답변 생성
@@ -843,7 +850,7 @@ const server = http.createServer(async (req,res)=>{
 
   // API: 서비스② 오케스트레이션 (작업지시 흐름 + 판정)
   if(u.pathname === '/api/workflow'){
-    const wo = u.searchParams.get('wo') || 'WO-2026-0724-01';
+    const wo = u.searchParams.get('wo') || 'WO-2026-0805-01';
     try{
       const w = await cypher(Q_WORKORDER, {wo});
       const j = await cypher(Q_JUDGMENT, {});
@@ -951,8 +958,8 @@ const server = http.createServer(async (req,res)=>{
   if(u.pathname === '/api/robot'){
     try{
       const r = await cypher(Q_ROBOT, {});
-      // 검사 대상 부품(SKIN)의 결함 분포도 함께
-      const d = await cypher(Q_PART, {part:'SKIN'});
+      // 검사 대상 부품(BLADE)의 결함 분포도 함께
+      const d = await cypher(Q_PART, {part:'BLADE'});
       return json(res, {scene:r[0]||null, part:d[0]||null});
     }catch(e){ return json(res, {error:e.message}, 500); }
   }
