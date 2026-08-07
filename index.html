@@ -436,7 +436,9 @@ function openRobot(by){
   const m=document.getElementById('modal');m.classList.add('show');
   document.querySelector('#modal .sh').firstChild.textContent = captureBy==='direct' ? '📷 직접 촬영 ' : '🤖 로봇 촬영 ';
   document.getElementById('mLoc').textContent=(CURWORK&&CURWORK.area)||'HPC Stg4 · BLD-017';
-  simVideo(captureBy!=='direct');   // 로봇 경로일 때만 시뮬 영상
+  // 정비사 화면은 '실제 촬영 결과'를 보는 곳이므로 시뮬 영상을 넣지 않는다.
+  //   (시뮬 영상은 로봇 HUD robot.html 에서만 재생 - 발표·설명용)
+  simVideo(false);
   const msg = captureBy==='direct' ? '촬영·업로드 중…' : '로봇 이동·조명·촬영 중…';
   document.getElementById('mBody').innerHTML='<div style="color:var(--dim2);font-size:12.5px;padding:12px"><span class="spin"></span> '+msg+'</div>';
   fetch('/api/robot').then(r=>r.json()).then(j=>{
