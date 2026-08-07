@@ -7,6 +7,12 @@
 //     node seed/run_cypher.js seed/d008_blade.cypher --dry   # 실행 없이 문장만 확인
 //
 //   접속 정보: .env 또는 환경변수 NEO4J_URI / NEO4J_USER / NEO4J_PW / NEO4J_DATABASE
+//
+//   ※ Neo4j Aura 주의 — URI·USER·DATABASE 세 값이 모두 인스턴스 ID다.
+//     NEO4J_DATABASE를 빠뜨리면 기본값 'neo4j'로 접속해 "Invalid credential"이 뜬다.
+//     (비밀번호 문제로 오해하기 쉬움 — 실제로는 DB 이름 불일치)
+//     예:  NEO4J_URI=https://xxxxxxxx.databases.neo4j.io
+//          NEO4J_USER=xxxxxxxx    NEO4J_DATABASE=xxxxxxxx
 // ============================================================
 const http = require('http');
 const https = require('https');
