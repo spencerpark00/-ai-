@@ -948,6 +948,14 @@ const server = http.createServer(async (req,res)=>{
     }catch(e){ return json(res, {error:e.message}, 500); }
   }
 
+  // [임시 진단] 접속 설정 확인 — 비밀번호는 길이·앞뒤 2글자만 노출 (시드 작업 후 제거)
+  if(u.pathname === '/api/_diag'){
+    const mask = s => !s ? '(없음)' : (s.length<=4 ? '****' : s.slice(0,2)+'*'.repeat(s.length-4)+s.slice(-2));
+    return json(res, {
+      uri: NEO4J_BASE, user: NEO4J_USER, db: NEO4J_DB,
+      pwLength: PW.length, pwMasked: mask(PW), queryUrl: NEO4J
+    });
+  }
   // API: 관리자 대시보드 (라이브 집계 + 실데이터 + 활동 이력)
   if(u.pathname === '/api/dashboard'){
     try{ return json(res, await buildDashboard()); }
