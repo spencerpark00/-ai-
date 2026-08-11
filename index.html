@@ -85,6 +85,41 @@
   .rbody .row span{color:var(--dim);font-size:12.5px}.rbody .row b{color:var(--txt);font-weight:600}
   .rbody .row .big{font-size:16px}
   /* 결함 설명·조치 순서 (가독성) */
+.capbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--dim);
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:12px}
+  .capbar .ok{margin-left:auto;color:var(--ok);font-weight:700}
+  /* 신뢰도 - 숫자 하나가 아니라 '얼마나 믿을 만한지'가 보이게 */
+  .cfx{margin-top:10px;padding-top:11px;border-top:1px solid #1a212b}
+  .cfh{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:var(--dim)}
+  .cfh b{font-size:19px;color:var(--acc);font-family:'IBM Plex Mono',monospace}
+  .cfx.low .cfh b{color:var(--warn)}
+  .cfbar{height:7px;border-radius:4px;background:#1a212b;overflow:hidden;margin-top:6px}
+  .cfbar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc2),var(--acc));border-radius:4px}
+  .cfx.low .cfbar i{background:linear-gradient(90deg,#f59e0b,var(--warn))}
+  .cfw{font-size:11.5px;color:var(--dim2);margin-top:6px;line-height:1.5}
+  .cfx.low .cfw b{color:var(--warn)}
+  /* 지금 할 일 - 화면에서 제일 큰 글씨. 장갑 끼고 멀리서도 읽혀야 한다 */
+  .todo{background:linear-gradient(135deg,#132a33,#12212b);border:1px solid var(--acc2);
+    border-radius:14px;padding:15px 17px;margin-bottom:13px}
+  .todo .tl{font-size:11.5px;font-weight:800;color:var(--acc2);letter-spacing:.6px}
+  .todo .tv{font-size:19px;font-weight:800;color:var(--txt);line-height:1.4;margin-top:7px;letter-spacing:-.3px}
+  .todo .tm{font-size:11.5px;color:var(--dim);margin-top:8px}
+  /* 공구 - 체크하며 챙긴다. 터치 타겟을 크게(장갑) */
+  .tools{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px 15px;margin-bottom:13px}
+  .tools .tt{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--acc2);
+    letter-spacing:.3px;margin-bottom:10px}
+  .tools .cnt{margin-left:auto;font-size:11.5px;color:var(--dim2);font-family:'IBM Plex Mono',monospace}
+  .tools .cnt.full{color:var(--ok);font-weight:700}
+  .ti{display:flex;align-items:center;gap:11px;padding:11px 12px;margin-bottom:7px;border-radius:10px;
+    background:#131a24;border:1px solid var(--line);cursor:pointer;min-height:46px;transition:.15s}
+  .ti:active{transform:scale(.99)}
+  .ti input{width:21px;height:21px;accent-color:var(--acc2);flex:none;cursor:pointer}
+  .ti .tn{font-size:14px;color:var(--txt);font-weight:600}
+  .ti .rb{margin-left:auto;font-size:10.5px;color:var(--robot);background:rgba(167,139,250,.12);
+    border:1px solid rgba(167,139,250,.3);border-radius:20px;padding:3px 8px;white-space:nowrap}
+  .ti.on{background:rgba(45,212,191,.08);border-color:rgba(45,212,191,.4)}
+  .ti.on .tn{color:var(--dim);text-decoration:line-through}
+  .tools .tf{font-size:11px;color:var(--dim2);margin-top:9px}
   .expl{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-bottom:14px}
   .expl .et{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--acc2);letter-spacing:.3px}
   .expl .et+p{margin-top:7px}
@@ -236,24 +271,30 @@ const RISK={CRACKED:['red','즉시 조치','구조 안전 직결 — 다음 비�
 const DEFINFO={
   CORRODED:{what:'표면 보호층이 깨져 모재가 침식된 상태입니다. 블레이드에서는 점 모양(피팅)으로 시작해, 방치하면 넓어지는 진행성 결함입니다.',
     next:'허용한도 확인 후 블렌딩 또는 교체',
+    tools:[['확대경 · 검사 조명',1],['뎁스 게이지',1],['블렌딩 툴 (에머리 클로스)',0],['방청 처리재 · 청정 천',0]],
     acts:['부식 범위·깊이 확인 — 촬영 기록과 대조','엔진 정비교범(EM/AMM) 허용한도 대조','한도 이내 → 블렌딩·방청 처리 후 사용','한도 초과 → 블레이드 교체, 개체번호 기록','처리 후 재촬영으로 증빙 남기기']},
   CRACKED:{what:'표면이 갈라진 상태입니다. 회전 부품의 균열은 운용 중 진전되면 파단으로 이어질 수 있어 구조 안전에 직결됩니다.',
     next:'교체 원칙 — 인접 블레이드 확대 검사',
+    tools:[['형광침투탐상(FPI) 키트',0],['검사 조명 · 확대경',1],['블레이드 탈거 공구',0],['개체번호 태그 · 마킹펜',1],['토크 렌치',1]],
     acts:['균열 위치·길이·방향 확인 — 리딩엣지·루트부 우선','교범 기준 확인 — 블레이드 균열은 원칙적으로 수리 대상이 아님','블레이드 교체, 개체번호·장착 위치 기록','같은 스테이지 인접 블레이드 확대 검사']},
   DENTED:{what:'FOD(이물 흡입) 등 충격으로 눌리거나 찍힌 자국입니다. 리딩엣지의 찍힘은 균열의 시작점이 될 수 있어 위치가 중요합니다.',
     next:'허용한도 확인 후 블렌딩 또는 교체',
+    tools:[['리딩엣지 게이지',1],['뎁스 게이지',1],['블렌딩 툴',0],['검사 조명',1]],
     acts:['찍힘 위치·크기 확인 — 리딩엣지 여부 우선','교범 허용한도 대조','한도 이내 → 블렌딩 후 사용','한도 초과 또는 균열 동반 → 교체','처리 결과 기록·재촬영']},
   WORN:{what:'반복 접촉·마찰로 재료가 닳은 상태입니다. 블레이드 팁 마모는 간극이 커져 압축 효율 저하로 이어집니다.',
     next:'허용한도 확인 — 관찰 기록 또는 교체',
+    tools:[['팁 클리어런스 게이지',1],['버니어 캘리퍼',1],['검사 조명',1]],
     acts:['마모 부위·정도 확인 — 팁 위주','교범 허용한도 대조','한도 이내 → 관찰 항목으로 기록','한도 초과 → 교체 판단','다음 오버홀 주기 참고용으로 기록']},
   GOUGED:{what:'긁혀 파인 표면 손상입니다. 깊이에 따라 처리 방법이 달라집니다.',
     next:'깊이 확인 후 블렌딩 또는 교체',
+    tools:[['뎁스 게이지',1],['확대경 · 검사 조명',1],['블렌딩 툴',0]],
     acts:['긁힘 깊이·길이 확인','교범 허용한도 대조','한도 이내 → 블렌딩','한도 초과 → 교체','처리 결과 기록']},
   DAMAGED:{what:'외부 충격 등으로 생긴 손상입니다. 형태가 다양해 범위 평가가 먼저입니다.',
     next:'범위 평가 후 수리 또는 교체',
+    tools:[['검사 조명 · 확대경',1],['뎁스 게이지',1],['버니어 캘리퍼',1],['블렌딩 툴',0]],
     acts:['손상 형태·범위 확인','교범 허용한도 대조','한도 이내 → 수리 후 사용','한도 초과 → 교체','처리 결과 기록·재촬영']},
 };
-let WORKS=[], CURWORK=null, STEP=0, FINDING=null;
+let WORKS=[], CURWORK=null, STEP=0, FINDING=null, ASSESS=null;
 const RISKB={긴급:['red','🔴'],주의:['org','🟠'],정상:['yel','🟢']};
 
 async function boot(){
@@ -361,42 +402,72 @@ function renderStage(){
       '<button class="btn main" onclick="backToList()" style="margin-top:12px">← 작업 목록으로</button></div>';
   }
 }
+// 판정 화면 — 정비 현장 기준으로 정보 순서를 짠다.
+//   ① 촬영 끝났나  ② 뭐가 나왔나(+얼마나 믿을 만한가)  ③ 뭘 해야 하나  ④ 뭘 챙겨야 하나  ⑤ 판정
+//   설명글은 접어둔다. 숙련자는 안 읽고, 신입만 펼친다.
 function renderResult(){
-  const f=FINDING||{cond:'CORRODED',conf:'0.87'};
+  const f=FINDING||{cond:'CORRODED',conf:0.87};
   const rk=RISK[f.cond]||['org','정비 필요',''];
   const kor=KOR[f.cond]||'부식';f.kor=kor;
   const info=DEFINFO[f.cond]||DEFINFO.DAMAGED;
   const loc=(CURWORK&&CURWORK.area)||'HPC Stg4 · BLD-017';
-  const capLead = captureBy==='direct' ? '촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>' : '로봇이 촬영하고 <b>AI가 이상한 곳을 찾았습니다.</b>';
+  const a=ASSESS||{};
+  const cp=Math.round((f.conf||0.87)*100);
+  const low=cp<80;
+  const tools=info.tools||[];
+  const capBar = captureBy==='direct'
+    ? '📷 직접 촬영 완료 · '+(a.cuts||3)+'컷'
+    : '🤖 로봇 촬영 완료 · '+(a.cuts||3)+'컷' + (a.shots>1?' · 재촬영 '+a.shots+'회':'')
+      + ' · 품질 '+Math.round((a.quality||0.92)*100)+'%';
   document.getElementById('body').innerHTML='<div class="stage">'+
-    '<div class="lead">'+capLead+'<br>결과를 확인하고 판정하세요.</div>'+
+    '<div class="capbar">'+capBar+' <span class="ok">증거 저장됨 ✓</span></div>'+
+    // ── 결함 + 신뢰도 (한 덩어리로) ──
     '<div class="result">'+
       '<div class="risk '+rk[0]+'"><div class="lv">'+(rk[0]==='red'?'🔴':(rk[0]==='org'?'🟠':(rk[0]==='yel'?'🟡':'🟢')))+' '+rk[1]+'</div><div class="sub">'+rk[2]+'</div></div>'+
       '<div class="rbody">'+
         '<div class="row"><span>결함 종류</span><b class="big">'+kor+' ('+f.cond+')</b></div>'+
         '<div class="row"><span>위치</span><b>'+((CURWORK&&CURWORK.part)||'BLADE')+' · '+loc+'</b></div>'+
-        '<div class="row"><span>다음 조치</span><b>'+info.next+'</b></div>'+
-        '<div class="row"><span>예상 소요</span><b>약 25분</b></div>'+
+        '<div class="cfx'+(low?' low':'')+'">'+
+          '<div class="cfh"><span>AI 판단 신뢰도</span><b>'+cp+'%</b></div>'+
+          '<div class="cfbar"><i style="width:'+cp+'%"></i></div>'+
+          '<div class="cfw">'+(a.why||'표준 조건에서 촬영됐습니다')+
+            (low?' · <b>신뢰도가 낮습니다 — 육안 확인 권장</b>':'')+'</div>'+
+        '</div>'+
       '</div></div>'+
-    // 결함 설명·조치 순서 — 판정 전에 화면에서 바로 읽히게 (드릴다운 없이)
+    // ── 지금 할 일 (가장 크게) ──
+    '<div class="todo"><div class="tl">▶ 지금 할 일</div>'+
+      '<div class="tv">'+info.next+'</div>'+
+      '<div class="tm">예상 약 25분 · 최종 판정은 정비사가 합니다</div></div>'+
+    // ── 준비할 공구 (체크) ──
+    (tools.length?'<div class="tools"><div class="tt">🧰 준비할 공구 <span class="cnt" id="tcnt">0/'+tools.length+'</span></div>'+
+      tools.map((t,i)=>'<label class="ti"><input type="checkbox" onchange="tchk()"><span class="tn">'+t[0]+'</span>'+
+        (t[1]?'<span class="rb">🤖 로봇 전달</span>':'')+'</label>').join('')+
+      '<div class="tf">🤖 표시는 로봇이 가져다줄 수 있는 공구입니다</div></div>':'')+
+    // ── 조치 순서 ──
     '<div class="expl">'+
-      '<div class="et">📖 이 결함은?</div><p>'+info.what+'</p>'+
-      '<div class="et" style="margin-top:13px">🛠 조치 순서</div>'+
+      '<div class="et">🛠 조치 순서</div>'+
       '<ol class="acts">'+info.acts.map((a,i)=>'<li><span class="n">'+(i+1)+'</span><span>'+a+'</span></li>').join('')+'</ol>'+
-      '<div class="gnote">※ 허용한도·수리 가능 기준의 수치는 해당 엔진 정비교범(EM/AMM)을 따릅니다. 상세 절차·공구·주의사항은 아래에서 확인하세요.</div>'+
+      '<div class="gnote">※ 허용한도·수리 기준 수치는 해당 엔진 정비교범(EM/AMM)을 따릅니다.</div>'+
     '</div>'+
-    // 드릴다운
+    // ── 접어둔 것: 필요할 때만 ──
     '<div class="drill">'+
+      '<div class="dbtn" onclick="toggle(this,\'d0\')">📖 이 결함은? <span class="ar">›</span></div>'+
+      '<div class="dpanel" id="d0"><p style="font-size:13.5px;color:var(--txt);line-height:1.7;margin:0">'+info.what+'</p></div>'+
       '<div class="dbtn" onclick="toggle(this,\'d1\')">🔎 왜 이렇게 판단했나 · 과거 사례 <span class="ar">›</span></div><div class="dpanel" id="d1"></div>'+
-      '<div class="dbtn" onclick="toggle(this,\'d2\')">🛠 검사 절차·공구·주의사항 <span class="ar">›</span></div><div class="dpanel" id="d2"></div>'+
+      '<div class="dbtn" onclick="toggle(this,\'d2\')">📘 교범 절차·주의사항 <span class="ar">›</span></div><div class="dpanel" id="d2"></div>'+
     '</div>'+
-    // 결정
+    // ── 판정 ──
     '<div class="decide"><div class="lbl">이 결과를 어떻게 처리할까요?</div>'+
     '<div class="jbtns"><button class="jb ok" onclick="judge(\'정상\',\'var(--ok)\')">✓ 정상</button>'+
     '<button class="jb re" onclick="judge(\'재검사\',\'var(--warn)\')">↺ 재검사</button>'+
     '<button class="jb fix" onclick="judge(\'수리\',\'var(--dang)\')">🔧 수리</button></div></div>'+
     '</div>';
   loadDrill();
+}
+function tchk(){
+  const b=document.querySelectorAll('.tools input'); if(!b.length) return;
+  let n=0; b.forEach(x=>{ x.closest('.ti').classList.toggle('on',x.checked); if(x.checked)n++; });
+  const c=document.getElementById('tcnt'); if(c){ c.textContent=n+'/'+b.length; c.classList.toggle('full',n===b.length); }
 }
 async function loadDrill(){
   // 과거 사례 + 절차를 지식그래프에서
@@ -405,7 +476,7 @@ async function loadDrill(){
     const d=j.data||{};const cases=(d.cases||[]).filter(c=>c.sum).slice(0,2);
     const procs=(j.procedures||[]).slice(0,2);
     document.getElementById('d1').innerHTML=(cases.length?cases.map(c=>'<div class="ev"><div class="eh"><span class="ac">'+(KOR[c.cond]||c.cond)+' 과거 사례</span><span class="lc">'+(c.fs?'FR'+c.fs:'')+(c.str?' / STR'+c.str:'')+'</span></div><div class="tx">"'+(c.sum||'').slice(0,110)+'…"</div><div class="sc">📄 실제 정비 보고 · '+(c.ac||'-')+'</div></div>').join(''):'<p style="font-size:11px;color:var(--dim2)">유사 사례 조회 중…</p>')+
-      '<div class="conf" style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px">AI 신뢰도 <b>87%</b> · 같은 부위에서 부식이 반복 보고됨</div>';
+      '<div class="conf" style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px">AI 신뢰도 <b>'+Math.round(((FINDING&&FINDING.conf)||0.87)*100)+'%</b> · '+((ASSESS&&ASSESS.why)||'유사 사례가 지식그래프에서 조회됨')+'</div>';
     document.getElementById('d2').innerHTML=procs.length?procs.map(p=>{
       const st=(p.steps||[]).map((s,i)=>'<span class="chip">'+(i+1)+'. '+s+'</span>').join('');
       const tl=(p.tools||[]).map(t=>'<span class="chip tool">🔧 '+t+'</span>').join('');
@@ -441,11 +512,14 @@ function openRobot(by){
   simVideo(false);
   const msg = captureBy==='direct' ? '촬영·업로드 중…' : '로봇 이동·조명·촬영 중…';
   document.getElementById('mBody').innerHTML='<div style="color:var(--dim2);font-size:12.5px;padding:12px"><span class="spin"></span> '+msg+'</div>';
-  fetch('/api/robot').then(r=>r.json()).then(j=>{
-    const sc=j.scene||{};const conf=sc.candConf!=null?sc.candConf:0.87;const quality=sc.quality!=null?sc.quality:0.92;
+  // 작업 ID를 넘겨 그 작업 고유의 신뢰도.품질을 받는다 (같은 작업 = 항상 같은 값)
+  fetch('/api/robot?work='+encodeURIComponent((CURWORK&&CURWORK.id)||'')).then(r=>r.json()).then(j=>{
+    const sc=j.scene||{}; ASSESS=j.assess||null;
+    const conf=ASSESS?ASSESS.conf:(sc.candConf!=null?sc.candConf:0.87);
+    const quality=ASSESS?ASSESS.quality:(sc.quality!=null?sc.quality:0.92);
     document.getElementById('bbt').textContent='CORROSION '+conf;
     setTimeout(()=>{
-      document.getElementById('mBody').innerHTML='<p style="font-size:13px;color:var(--txt);margin-bottom:6px">촬영 완료 · 품질 <b>'+quality+'</b> ✓</p>'+
+      document.getElementById('mBody').innerHTML='<p style="font-size:13px;color:var(--txt);margin-bottom:6px">촬영 완료 · 품질 <b>'+Math.round(quality*100)+'%</b> ✓'+(ASSESS&&ASSESS.shots>1?' <span style="color:var(--warn)">(재촬영 '+ASSESS.shots+'회)</span>':'')+'</p>'+
         '<p style="font-size:12px;color:var(--dim);margin-bottom:12px">AI가 이상 후보를 표시했어요.</p>'+
         '<button class="btn main" onclick="captured('+conf+')">AI 결과 보기 →</button>';
     },1500);

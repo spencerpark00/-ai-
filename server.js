@@ -957,12 +957,14 @@ const server = http.createServer(async (req,res)=>{
 
   // API: 서비스③ 로봇 검사 HUD
   if(u.pathname === '/api/robot'){
+    // 촬영 평가는 지식그래프와 무관하다 -> 그래프가 죽어도 정비사 화면은 계속 돌아야 한다
+    const w = WORKS.find(x=>x.id===u.searchParams.get('work'));
+    const out = { assess: assess(w) };
     try{
-      const r = await cypher(Q_ROBOT, {});
-      // 검사 대상 부품(BLADE)의 결함 분포도 함께
-      const d = await cypher(Q_PART, {part:'BLADE'});
-      return json(res, {scene:r[0]||null, part:d[0]||null});
-    }catch(e){ return json(res, {error:e.message}, 500); }
+      out.scene = (await cypher(Q_ROBOT, {}))[0] || null;
+      out.part  = (await cypher(Q_PART, {part:'BLADE'}))[0] || null;
+    }catch(e){ out.scene=null; out.part=null; out.graphError=e.message||'graph unavailable'; }
+    return json(res, out);
   }
 
   // 정적 파일 — 최초 진입은 통합 로그인 랜딩(역할 선택). 정비사=/index.html, 관리자=/manager.html
@@ -975,6 +977,46 @@ const server = http.createServer(async (req,res)=>{
     res.end(data);
   });
 });
+
+// ── 로봇 촬영 결과 평가 (작업 단위 결정론적 생성) ─────────────────────────
+//  실제 비전 모델을 학습시키지 않는 PoC 범위이므로, 값은 규칙 + 작업 ID 시드로 만든다.
+//  * 작업 ID가 시드라 같은 작업은 언제 열어도 같은 값 -> 정비사 화면과 관리자 화면이 어긋나지 않는다.
+//  * 결함 종류마다 기저 신뢰도가 다르다 (아래 근거는 실제 육안/영상 검사 특성)
+//  * 실도입 시 이 함수를 실제 검사 모델의 출력으로 교체한다.
+const CONF_BASE = {
+  '균열':  [0.79, '미세 균열은 표면 반사에 묻혀 대비가 낮습니다'],
+  '부식':  [0.91, '변색 대비가 뚜렷해 검출이 안정적입니다'],
+  '찍힘':  [0.86, '형상 변화가 뚜렷하나 깊이 판단은 사람 확인이 필요합니다'],
+  '마모':  [0.83, '경계가 완만해 진행 정도 판단에 편차가 있습니다'],
+  '흠집':  [0.85, '길이는 명확하나 깊이는 촬영각에 민감합니다'],
+  '손상':  [0.81, '형태가 다양해 유형 분류 신뢰도가 낮습니다'],
+  '이상없음': [0.94, '결함 신호가 관찰되지 않았습니다'],
+};
+function _seed(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+function _rng(seed){ let a=seed; return ()=>{ a|=0; a=a+0x6D2B79F5|0;
+  let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const _cl = (v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+
+function assess(w){
+  if(!w) return null;
+  const rnd = _rng(_seed(w.id + '|' + (w.defect||'')));
+  const [base, why] = CONF_BASE[w.defect] || [0.85, '표준 조건에서 촬영됐습니다'];
+  const jitter = (rnd()-0.5)*0.09;
+  // 재검사가 걸린 건은 촬영 조건이 나빴다는 뜻 -> 신뢰도.품질을 함께 낮춘다
+  const pen = w.retake ? 0.07 : 0;
+  const conf    = _cl(base + jitter - pen, 0.60, 0.97);
+  const quality = _cl(0.93 + (rnd()-0.5)*0.07 - pen*1.2, 0.68, 0.99);
+  // 품질이 낮으면 로봇이 다시 찍었다는 뜻 (시뮬레이션의 재촬영 루프와 같은 규칙)
+  const shots   = quality < 0.86 ? 2 : 1;
+  return {
+    conf: Math.round(conf*100)/100,
+    quality: Math.round(quality*100)/100,
+    shots,
+    cuts: 3,                                   // 리딩엣지.압력면.흡입면
+    why,
+    lowConf: conf < 0.80,                      // 낮으면 화면에서 사람 확인을 더 강조
+  };
+}
 
 function json(res, obj, code){
   res.writeHead(code||200, {'Content-Type':'application/json; charset=utf-8'});
