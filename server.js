@@ -453,8 +453,12 @@ function seedWorks(){
       // 증빙 갭 데모용: 일부 완료건은 직접촬영(사진 자동연결 약함), 일부는 재검사(조치 미완)
       const verd = d[1]==='이상없음' ? '정상' : ((ti+k)%4===3 ? '재검사' : (k===0 ? '수리' : '정상'));
       const cap = done ? ((ti+k)%3!==0) : null;   // true=로봇 촬영, false=직접(사진 증빙 누락)
+      // state = Work Order 실행 상태(9단계). status(대기/완료)는 state에서 파생 —
+      //   기존 코드가 전부 status 문자열을 보고 있어 그대로 두고 state를 얹는다.
+      const st = done ? (verd==='수리' ? 'AWAITING_APPROVAL' : 'COMPLETED') : 'ASSIGNED';
       arr.push({ id:'W-'+(ti+1)+String(k+1).padStart(2,'0'), owner:t.id,
         ac:acs[(ti+k)%acs.length], part:d[0], area:frs[(ti*2+k)%frs.length], defect:d[1], risk:d[2],
+        state:st, timeline:[], qc:null,
         status:done?'완료':'대기', robot:cap, verdict:done?verd:null,
         base:d[3], lead:done?Math.round(d[3]*0.8):null, tech:t.grade,
         quality:done?(verd!=='재검사'):null, retake:done&&verd==='재검사', at:done?ago(28+ti*17+k*33):null });
@@ -462,9 +466,57 @@ function seedWorks(){
   });
   return arr;
 }
+// ── Work Order 상태기계 ────────────────────────────────────────────────
+//  ASSIGNED → IN_PROGRESS → ROBOT_EXECUTING → QUALITY_CHECK →(FAIL) RECAPTURE → QUALITY_CHECK
+//           → AWAITING_INSPECTION →(정비사 판정) COMPLETED | AWAITING_APPROVAL |↺ROBOT_EXECUTING
+//  status(대기/완료)는 여기서 파생한다. 수리 판정은 정비사 손을 떠났으므로 '완료'로 본다
+//  (관리자 승인만 남은 상태) — 그래야 정비사 목록에 다시 뜨지 않는다.
+const STATE_KO = {
+  ASSIGNED:'작업 배정', IN_PROGRESS:'작업 시작', ROBOT_EXECUTING:'로봇 검사 중',
+  QUALITY_CHECK:'촬영 품질 판정', RECAPTURE:'재촬영', AWAITING_INSPECTION:'정비사 판정 대기',
+  AWAITING_APPROVAL:'관리자 승인 대기', COMPLETED:'완료',
+};
+function statusOf(state){
+  return (state==='COMPLETED' || state==='AWAITING_APPROVAL') ? '완료' : '대기';
+}
+function setState(w, next, by, note){
+  if(!w) return w;
+  if(w.state===next){   // 같은 상태 재진입 — 이력만 남긴다 (from 을 비우지 않는다)
+    if(note){ w.timeline=w.timeline||[];
+      w.timeline.push({at:new Date().toISOString(), from:w.state, state:next, by:by||'system', note}); }
+    return w;
+  }
+  w.timeline = w.timeline || [];
+  w.timeline.push({at:new Date().toISOString(), from:w.state, state:next, by:by||'system', note:note||''});
+  if(w.timeline.length>40) w.timeline.shift();
+  w.state  = next;
+  w.status = statusOf(next);
+  return w;
+}
 let WORKS = seedWorks();
+// 시드 완료건에도 검사 이력을 채운다 — 안 하면 관리자 Drawer 가 '아직 촬영 전'으로 비어 보인다.
+//   (값은 작업 ID 시드 기반 재현 — 화면에 'PoC 재현'으로 명시)
+function backfill(w){
+  if(w.state!=='COMPLETED' && w.state!=='AWAITING_APPROVAL') return;
+  qcRun(w);
+  const q=w.qc, t0=w.at||new Date().toISOString();
+  const push=(state,by,note)=>w.timeline.push({at:t0, state, by, note});
+  w.timeline=[];
+  push('IN_PROGRESS', w.owner, '작업 시작');
+  push('ROBOT_EXECUTING', w.owner, w.robot?'로봇 촬영':'직접 촬영');
+  push('QUALITY_CHECK','robot','촬영 품질 판정');
+  if(q && q.attempts.length>1){
+    const fa=q.attempts[0];
+    push('RECAPTURE','robot','1차 '+Math.round(fa.coverage*100)+'% 불합격 — '+fa.reason+' → '+fa.replan.detail);
+    push('QUALITY_CHECK','robot','재촬영 후 재판정');
+  }
+  push('AWAITING_INSPECTION','robot','촬영 '+(q?q.shots:1)+'회 · 최종 '+(q?Math.round(q.attempts[q.attempts.length-1].coverage*100):0)+'% 합격');
+  if(w.verdict==='수리'){ push('AWAITING_APPROVAL', w.owner, '수리 판정 — 관리자 승인 요청'); }
+  else { push('COMPLETED', w.owner, (w.verdict||'정상')+' 판정 — 완료'); }
+}
 // 데모 리셋용 초기 스냅샷 (교육생이 작업을 다 완료해도 '새 작업 배정'으로 다시 체험)
-const WORKS_SEED = JSON.parse(JSON.stringify(WORKS));
+//   실제 스냅샷은 아래 backfill 이후에 다시 잡는다 (qcRun 이 쓰는 상수가 그 뒤에 선언되기 때문)
+let WORKS_SEED = JSON.parse(JSON.stringify(WORKS));
 // ── 가동 보드 라이브 엔진 (LIVE) — 실제 상태만 반영 (정비사↔관리자 100% 일치) ──
 //   정비사가 앱에서 단계 보고 → 그 pair만 실시간 진행. 비활성 정비사는 실제 배정 상태(대기 N건/유휴)로 정직 표시.
 //   (가짜 자동진행 없음 — 화면과 실제가 절대 어긋나지 않게)
@@ -480,7 +532,28 @@ function reportProgress(techId, workId, step){
   const id=techId||(w&&w.owner); if(!id||!techOf(id)) return;
   const now=Date.now(); let L=LIVE[id]; if(!L) L=LIVE[id]={ workStart:now };
   const s=Math.max(1,Math.min(4,step||1));
+  // 정비사 단계 보고를 Work Order 상태로도 반영한다 (LIVE 세션에만 두면 작업 단위 추적이 안 된다)
+  if(w && w.state!=='COMPLETED' && w.state!=='AWAITING_APPROVAL'){
+    if(s===1) setState(w, 'IN_PROGRESS', id, '작업 시작');
+    else if(s===2) setState(w, 'ROBOT_EXECUTING', id, '로봇 촬영 시작');
+    else if(s===3){
+      setState(w, 'QUALITY_CHECK', 'robot', '촬영 품질 판정');
+      const q = qcRun(w);
+      if(q && q.attempts.length>1){
+        const fa = q.attempts[0];
+        setState(w, 'RECAPTURE', 'robot',
+          '1차 '+Math.round(fa.coverage*100)+'% 불합격 — '+fa.reason+' → '+fa.replan.detail);
+        setState(w, 'QUALITY_CHECK', 'robot', '재촬영 후 재판정');
+      }
+    }
+    else if(s>=4){
+      const q = qcRun(w);
+      setState(w, 'AWAITING_INSPECTION', 'robot',
+        '촬영 '+(q?q.shots:1)+'회 · 최종 '+(q?Math.round(q.attempts[q.attempts.length-1].coverage*100):0)+'% 합격');
+    }
+  }
   L.wo = workId?('WO·'+workId):'—';
+  L.woId = workId||null;
   L.task = w ? (w.ac+' '+w.part+' '+w.area+' — '+w.defect+' 점검') : '점검';
   L.stepNum=s; L.stepLabel=s+'/5 '+STEP_NAMES[s-1];
   L.robot=STEP_ROBOT[s-1]; L.prog=Math.round(s/5*100); L.status='작업중';
@@ -496,18 +569,26 @@ function livePairs(){
     const waitN=mine.filter(w=>w.status!=='완료').length, doneN=mine.length-waitN;
     if(L && now-(L.lastActive||0) < IDLE_MS){   // 로그인·근무 중인 세션
       if(waitN===0)   // 배정 작업 다 끝냄
-        return { tech:t.id, grade:t.grade, robot:t.robot, rst:'충전중', wo:'—',
+        return { tech:t.id, grade:t.grade, robot:t.robot, rst:'충전중', wo:'—', woId:null, state:null,
           task:'배정 작업 모두 완료 · 유휴 (완료 '+doneN+'건)', step:'완료', prog:100, status:'완료',
           elapsed:fmtMin(now-(L.workStart||now)), parallel:null, real:true };
-      return { tech:t.id, grade:t.grade, robot:t.robot, rst:L.robot||'대기',
-        wo:L.wo||'—', task:L.task||'점검', step:L.stepLabel||'—', prog:L.prog||0, status:L.status||'작업중',
+      // 세션(LIVE)과 Work Order 상태가 어긋나지 않게 파생 시점에 한 번 더 맞춘다.
+      //   (판정.승인으로 작업이 끝났는데 보드에 '3/5 촬영'이 남는 경우 방지)
+      const lw = L.woId ? WORKS.find(x=>x.id===L.woId) : null;
+      const closed = lw && (lw.state==='COMPLETED' || lw.state==='AWAITING_APPROVAL');
+      return { tech:t.id, grade:t.grade, robot:t.robot, rst: closed?'대기':(L.robot||'대기'),
+        wo: closed?'—':(L.wo||'—'), woId: closed?null:(L.woId||null),
+        state: closed?null:((lw&&lw.state)||null),
+        task: closed?('직전 작업 완료('+(lw.verdict||'')+') · 다음 작업 준비'):(L.task||'점검'),
+        step: closed?'다음 작업 준비':(L.stepLabel||'—'),
+        prog: closed?100:(L.prog||0), status:L.status||'작업중',
         elapsed:fmtMin(now-(L.workStart||now)),
-        parallel:(L.stepNum===2)?'로봇 촬영 중 — 정비사 인접부 육안점검 병행':null, real:true };
+        parallel:(!closed && L.stepNum===2)?'로봇 촬영 중 — 정비사 인접부 육안점검 병행':null, real:true };
     }
     if(L) delete LIVE[t.id];   // 세션 만료 → 정리
     const idle = waitN>0;
     return { tech:t.id, grade:t.grade, robot:t.robot, rst: idle?'대기':'충전중',
-      wo:'—', task: idle?('배정 대기 '+waitN+'건 · 완료 '+doneN+'건'):('배정 작업 완료 · 유휴 (완료 '+doneN+'건)'),
+      wo:'—', woId:null, state:null, task: idle?('배정 대기 '+waitN+'건 · 완료 '+doneN+'건'):('배정 작업 완료 · 유휴 (완료 '+doneN+'건)'),
       step:'—', prog:0, status: idle?'대기':'유휴', elapsed:'—', parallel:null, real:false };
   });
 }
@@ -523,12 +604,22 @@ function liveFleet(pairs){
 //   실제 작업을 처리하므로 화면과 일치 유지. 로그인해 작업 중인 정비사는 절대 건드리지 않음.
 //   환류(Neo4j)는 쓰지 않음 — 검증 지식은 사람 승인만 (HITL 유지).
 let AUTO = false;
+// 자동재생 완료 — 사람이 하는 것과 같은 상태기계를 탄다 (화면과 실제가 어긋나지 않게)
 function autoComplete(id){
-  const w=WORKS.find(x=>x.id===id); if(!w||w.status==='완료') return;
-  w.status='완료'; w.robot=true;
+  const w=WORKS.find(x=>x.id===id);
+  if(!w || w.state==='COMPLETED' || w.state==='AWAITING_APPROVAL') return;
+  w.robot=true;
   w.verdict = w.defect==='이상없음' ? '정상' : (w.risk==='긴급' ? '수리' : '정상');
   w.retake=false; w.quality=true; w.lead=Math.round(w.base*0.8); w.at=new Date().toISOString();
-  ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:w.verdict, by:'로봇', text:actText(w)});
+  qcRun(w);
+  if(w.verdict==='수리'){
+    setState(w, 'AWAITING_APPROVAL', '자동재생', '수리 판정 — 관리자 승인 요청');
+    ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:'수리', by:'로봇',
+      text:w.part+' '+w.defect+' — 수리 판정 → 관리자 승인 대기'});
+  }else{
+    setState(w, 'COMPLETED', '자동재생', '정상 판정 — 완료');
+    ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:w.verdict, by:'로봇', text:actText(w)});
+  }
   if(ACTIVITY.length>60) ACTIVITY.length=60;
 }
 function autoTick(){
@@ -552,8 +643,26 @@ function autoTick(){
       A.curId=next.id; A.step=0; A.workStart=now; A.charging=true; A.lastActive=now; return; // 다음 틱 충전
     }
     const w=WORKS.find(x=>x.id===A.curId), s=Math.max(1,Math.min(5,A.step));
+    if(w && w.state!=='COMPLETED' && w.state!=='AWAITING_APPROVAL'){
+      if(s===1) setState(w,'IN_PROGRESS','자동재생','작업 시작');
+      else if(s===2) setState(w,'ROBOT_EXECUTING','자동재생','로봇 촬영 시작');
+      else if(s===3){
+        setState(w,'QUALITY_CHECK','robot','촬영 품질 판정');
+        const q=qcRun(w);
+        if(q && q.attempts.length>1){
+          const fa=q.attempts[0];
+          setState(w,'RECAPTURE','robot','1차 '+Math.round(fa.coverage*100)+'% 불합격 — '+fa.reason+' → '+fa.replan.detail);
+          setState(w,'QUALITY_CHECK','robot','재촬영 후 재판정');
+        }
+      }
+      else if(s===4) setState(w,'AWAITING_INSPECTION','robot','정비사 판정 대기');
+    }
+    A.woId=A.curId;
     A.wo='WO·'+A.curId; A.task=w?(w.ac+' '+w.part+' '+w.area+' — '+w.defect+' 점검'):'점검';
-    A.stepNum=s; A.stepLabel=s+'/5 '+STEP_NAMES[s-1]; A.robot=STEP_ROBOT[s-1];
+    A.stepNum=s;
+    // 5단계는 아직 판정 전이다 (판정은 다음 틱의 autoComplete). 라벨을 상태와 맞춘다.
+    A.stepLabel = (s===5) ? '5/5 정비사 판정 대기' : (s+'/5 '+STEP_NAMES[s-1]);
+    A.robot=STEP_ROBOT[s-1];
     A.prog=Math.round(s/5*100); A.status='작업중'; A.lastActive=now;
   });
 }
@@ -583,16 +692,37 @@ MERGE (v)-[:ON_PART]->(p)
 RETURN v.id AS id`;
 
 // 정비사 판정 → 작업 완료 처리 + 이력 기록 + (승인 시) Neo4j 환류 축적
+// 정비사 판정.
+//   정상  → 완료 + 환류
+//   수리  → 관리자 승인 대기 (승인 시점에 환류)
+//   재검사 → 로봇 검사로 되돌림 (작업이 정비사 목록에 다시 뜬다)
 async function completeWork(id, capturedBy, verdict){
   const w = WORKS.find(x=>x.id===id);
-  if(!w || w.status==='완료') return null;
-  w.status='완료';
+  if(!w || w.state==='COMPLETED' || w.state==='AWAITING_APPROVAL') return null;
   w.robot   = capturedBy!=='direct';
   w.verdict = verdict || '정상';
   w.retake  = (w.verdict==='재검사');
   w.quality = (w.verdict!=='재검사');
   w.lead    = Math.round(w.base * (w.verdict==='재검사'?0.9:0.8));
   w.at      = new Date().toISOString();
+
+  if(w.verdict==='재검사'){
+    // 다시 찍어야 한다 -> 완료가 아니다. 촬영 이력을 비워 새 검사가 돌게 한다.
+    w.qc = null;
+    setState(w, 'ROBOT_EXECUTING', w.owner||'정비사', '정비사 재검사 요청 — 로봇 재촬영');
+    ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:'재검사',
+      by:w.robot?'로봇':'직접', text:w.part+' '+w.defect+' — 정비사 재검사 요청 → 로봇 재촬영 대기'});
+    if(ACTIVITY.length>60) ACTIVITY.length=60;
+    return w;
+  }
+  if(w.verdict==='수리'){
+    setState(w, 'AWAITING_APPROVAL', w.owner||'정비사', '수리 판정 — 관리자 승인 요청');
+    ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:'수리',
+      by:w.robot?'로봇':'직접', text:w.part+' '+w.defect+' — 수리 판정 → 관리자 승인 대기'});
+    if(ACTIVITY.length>60) ACTIVITY.length=60;
+    return w;
+  }
+  setState(w, 'COMPLETED', w.owner||'정비사', '정상 판정 — 완료');
   ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:w.verdict, by:w.robot?'로봇':'직접', text:actText(w)});
   // 환류: 승인(수리/정상)된 작업만 지식그래프에 축적 (HITL). 재검사는 제외.
   w.hwanryu = false;
@@ -612,6 +742,26 @@ async function completeWork(id, capturedBy, verdict){
     L.stepNum=0; L.stepLabel='다음 작업 준비'; L.robot='대기'; L.prog=100; L.status='작업중';
     L.lastActive=Date.now();
   }
+  return w;
+}
+
+// 관리자 승인 — 수리 판정 건을 최종 완료 처리하고 그때 환류한다 (HITL)
+async function approveWork(id, note){
+  const w = WORKS.find(x=>x.id===id);
+  if(!w || w.state!=='AWAITING_APPROVAL') return null;
+  setState(w, 'COMPLETED', '관리자', note || '수리 판정 승인');
+  w.at = new Date().toISOString();
+  ACTIVITY.unshift({at:w.at, id:w.id, part:w.part, area:w.area, verdict:w.verdict, by:'관리자',
+    text:w.part+' '+w.defect+' 수리 판정 — 관리자 승인 완료'});
+  if(ACTIVITY.length>60) ACTIVITY.length=60;
+  w.hwanryu = false;
+  try{
+    await cypher(Q_VERIFY_WRITE, {id:'V-'+w.id+'-'+Date.now(), part:w.part, ac:w.ac,
+      cond:w.defect, verdict:w.verdict, by:(w.owner||'정비사'),
+      cap:(w.robot?'robot':'direct'), area:(w.area||''), at:w.at});
+    w.hwanryu = true;
+    console.log('  ↻ 환류 축적(승인): '+w.id+' → Neo4j VerifiedCase');
+  }catch(e){ console.log('  ! 환류 실패: '+e.message); }
   return w;
 }
 
@@ -651,10 +801,10 @@ async function buildDashboard(){
   // ── 품질·활용
   const ops = { defects:cnt(w=>w.status==='완료'&&w.defect!=='이상없음'), retake:cnt(w=>w.retake),
                 robotRate: done.length?Math.round(done.filter(w=>w.robot).length/done.length*100):0,
-                approvalWait:cnt(w=>w.status==='완료'&&w.verdict==='수리') };
+                approvalWait:cnt(w=>w.state==='AWAITING_APPROVAL') };
   // ── 병목 (라이브 파생)
   const bottleneck = { '검사 대기':waiting.length,
-                       '승인 대기':cnt(w=>w.status==='완료'&&w.verdict==='수리'),
+                       '승인 대기':cnt(w=>w.state==='AWAITING_APPROVAL'),
                        '재검사':cnt(w=>w.retake) };
   // ── 결함 Top3 (완료 기준)
   const dm={}; W.forEach(w=>{ if(w.status==='완료'&&w.defect!=='이상없음') dm[w.defect]=(dm[w.defect]||0)+1; });
@@ -864,7 +1014,8 @@ const server = http.createServer(async (req,res)=>{
     const tech = u.searchParams.get('tech');           // 정비사 앱: 자기 작업만
     const list = tech ? WORKS.filter(w=>w.owner===tech) : WORKS;
     return json(res, list.map(w=>({id:w.id, ac:w.ac, part:w.part, area:w.area, defect:w.defect,
-      risk:w.risk, status:w.status, tech:w.tech, owner:w.owner, verdict:w.verdict})));
+      risk:w.risk, status:w.status, state:w.state, stateKo:STATE_KO[w.state]||w.state,
+      tech:w.tech, owner:w.owner, verdict:w.verdict})));
   }
   // API: 정비사 단계 진행 보고 → 가동보드 라이브 갱신 (실시간)
   if(u.pathname === '/api/works/progress' && req.method==='POST'){
@@ -888,6 +1039,28 @@ const server = http.createServer(async (req,res)=>{
     try{
       const p = JSON.parse(await readBody(req) || '{}');
       const w = await completeWork(p.id, p.capturedBy, p.verdict);
+      return json(res, {ok:!!w, work:w});
+    }catch(e){ return json(res, {error:e.message}, 500); }
+  }
+  // API: Work Order 상세 — 하나의 WO를 처음부터 끝까지 추적 (가동보드 클릭 -> Drawer)
+  if(u.pathname === '/api/wo'){
+    const w = WORKS.find(x=>x.id===u.searchParams.get('id'));
+    if(!w) return json(res, {error:'not found'}, 404);
+    const t = techOf(w.owner);
+    return json(res, {
+      id:w.id, ac:w.ac, part:w.part, area:w.area, defect:w.defect, risk:w.risk,
+      state:w.state, stateKo:STATE_KO[w.state]||w.state, status:w.status,
+      verdict:w.verdict, capturedBy:(w.robot===null?null:(w.robot?'robot':'direct')),
+      tech: t?{id:t.id, grade:t.grade, robot:t.robot}:null,
+      assess: assess(w), qc: w.qc, timeline: w.timeline||[],
+      hwanryu: !!w.hwanryu, at: w.at||null,
+    });
+  }
+  // API: 관리자 승인 — 수리 판정 건을 최종 완료 (이때 지식그래프 환류)
+  if(u.pathname === '/api/works/approve' && req.method==='POST'){
+    try{
+      const p = JSON.parse(await readBody(req) || '{}');
+      const w = await approveWork(p.id, p.note);
       return json(res, {ok:!!w, work:w});
     }catch(e){ return json(res, {error:e.message}, 500); }
   }
@@ -1006,8 +1179,11 @@ function assess(w){
   const pen = w.retake ? 0.07 : 0;
   const conf    = _cl(base + jitter - pen, 0.60, 0.97);
   const quality = _cl(0.93 + (rnd()-0.5)*0.07 - pen*1.2, 0.68, 0.99);
-  // 품질이 낮으면 로봇이 다시 찍었다는 뜻 (시뮬레이션의 재촬영 루프와 같은 규칙)
-  const shots   = quality < 0.86 ? 2 : 1;
+  // 1차 촬영 실패율은 결함 유형에 따라 다르다.
+  //   미세 균열.마모는 경계가 흐려 촬영 조건(거리.각도)에 민감해 한 번에 못 담는 경우가 잦다.
+  //   실패하면 로봇이 원인을 판단해 자세를 바꿔 재촬영한다 (시뮬레이션의 닫힌 루프와 같은 규칙).
+  const RECAP = {'균열':0.35,'마모':0.30,'손상':0.25,'흠집':0.20,'찍힘':0.15,'부식':0.12,'이상없음':0.05};
+  const shots   = (rnd() < ((RECAP[w.defect]!==undefined?RECAP[w.defect]:0.2) + (w.retake?0.25:0))) ? 2 : 1;
   return {
     conf: Math.round(conf*100)/100,
     quality: Math.round(quality*100)/100,
@@ -1017,6 +1193,48 @@ function assess(w){
     lowConf: conf < 0.80,                      // 낮으면 화면에서 사람 확인을 더 강조
   };
 }
+
+// ── 촬영 품질 검사 이력 (PyBullet 시뮬레이션과 같은 규칙을 작업 ID 시드로 재현) ──
+//  주의: 실시간 PyBullet 연결이 아니다. 화면에 'PoC 재현'으로 명시한다.
+//  실도입 시 이 함수를 로봇에서 올라오는 실제 검사 결과로 교체한다.
+const QC_REGIONS = ['팁','루트','외곽 엣지'];
+const REG_PASS = 0.88, COV_PASS = 0.90;
+function qcRun(w){
+  if(!w) return null;
+  if(w.qc) return w.qc;                       // 한 번 정해지면 고정 (새로고침해도 같은 값)
+  const a = assess(w); if(!a) return null;
+  const rnd = _rng(_seed(w.id + '|qc'));
+  const mk = (cov, badIdx) => {
+    const rg = {};
+    QC_REGIONS.forEach((r,i)=>{ rg[r] = (i===badIdx)
+      ? Math.round((0.45 + rnd()*0.30)*100)/100
+      : Math.round((0.92 + rnd()*0.07)*100)/100; });
+    return rg;
+  };
+  const attempts = [];
+  if(a.shots > 1){
+    // 1차 실패 — 한 부위가 화각을 벗어났다
+    const bad = Math.floor(rnd()*QC_REGIONS.length);
+    const cov1 = Math.round((0.70 + rnd()*0.13)*100)/100;
+    const region = QC_REGIONS[bad];
+    // 실패 원인에 따라 재계획 방식이 갈린다 (시뮬레이션과 같은 판단)
+    const replan = (region==='외곽 엣지')
+      ? { kind:'tilt',  detail:'카메라 이동 + 광축 0° → +12°' }
+      : { kind:'dist',  detail:'촬영 거리 확보 · 높이 0.50 m → 0.60 m' };
+    attempts.push({ n:1, coverage:cov1, regions:mk(cov1, bad), result:'FAIL',
+                    reason:region+' 영역이 화각을 벗어남', replan });
+    attempts.push({ n:2, coverage:a.quality, regions:mk(a.quality, -1), result:'PASS' });
+  }else{
+    attempts.push({ n:1, coverage:a.quality, regions:mk(a.quality, -1), result:'PASS' });
+  }
+  w.qc = { attempts, shots:attempts.length, pass:true,
+           covPass:COV_PASS, regPass:REG_PASS, source:'PoC 재현 (실시간 로봇 연결 아님)' };
+  return w.qc;
+}
+
+// 상수 선언이 끝난 시점에 시드 완료건 이력을 채우고 스냅샷을 다시 잡는다
+WORKS.forEach(backfill);
+WORKS_SEED = JSON.parse(JSON.stringify(WORKS));
 
 function json(res, obj, code){
   res.writeHead(code||200, {'Content-Type':'application/json; charset=utf-8'});

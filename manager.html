@@ -92,6 +92,8 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .sugc{border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-top:9px;background:#fafcff;cursor:pointer;transition:.12s}
   .sugc:hover{border-color:#9fb2cc;background:#f5f9ff}
+  tr.wor{cursor:pointer}
+  tr.wor:hover{background:#f4f8fd}
 </style></head>
 <body>
 <div id="login" style="position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:linear-gradient(160deg,#0e1c33 0%,#16304f 60%,#1c3a5e 100%)">
@@ -168,6 +170,80 @@ function ct(label,en,val,note,color){ return `<div class="ct"><div class="cl">${
 function bar(lb,n,max,color){ const w=Math.max(6,Math.round(n/max*100)); return `<div class="rowbar"><div class="lb">${lb}</div><div class="tk"><i style="width:${w}%;background:${color}"></i></div><div class="nm">${n}</div></div>`; }
 function fmtTime(iso){ if(!iso) return ''; try{return new Date(iso).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} }
 
+// ── Work Order 추적 Drawer ──
+//  하나의 WO를 배정 -> 로봇 실행 -> 품질 판정 -> 재촬영 -> 정비사 판정 -> 승인 -> 완료까지
+//  같은 ID로 따라간다. 표시값은 전부 서버의 실제 Work Order 상태에서 온다.
+const WOSTATE={ASSIGNED:'배정',IN_PROGRESS:'작업 시작',ROBOT_EXECUTING:'로봇 검사 중',
+  QUALITY_CHECK:'품질 판정',RECAPTURE:'재촬영',AWAITING_INSPECTION:'정비사 판정 대기',
+  AWAITING_APPROVAL:'승인 대기',COMPLETED:'완료'};
+// Physical AI 파이프라인 — 시뮬레이션과 같은 단계명을 쓴다
+const PIPE=[['PERCEPTION','블레이드 위치·자세 인지'],['PLANNING','촬영 자세 계산'],
+  ['ACTION','Indy7 정렬 · 촬영'],['QUALITY CHECK','촬영 품질 판정'],['REPLANNING','재촬영 자세 재계산']];
+function pipeMark(state, qc){
+  const order=['ASSIGNED','IN_PROGRESS','ROBOT_EXECUTING','QUALITY_CHECK','RECAPTURE',
+               'AWAITING_INSPECTION','AWAITING_APPROVAL','COMPLETED'];
+  const i=order.indexOf(state);
+  const done=n=>i>=order.indexOf(n);
+  const recap=!!(qc&&qc.attempts&&qc.attempts.length>1);
+  return [ done('ROBOT_EXECUTING')?'done':(i>=1?'now':'wait'),
+           done('ROBOT_EXECUTING')?'done':'wait',
+           state==='ROBOT_EXECUTING'?'now':(done('QUALITY_CHECK')?'done':'wait'),
+           state==='QUALITY_CHECK'?'now':(done('AWAITING_INSPECTION')?'done':'wait'),
+           recap?(done('AWAITING_INSPECTION')?'done':'now'):'skip' ];
+}
+async function openWO(id){
+  $('#dwIn').innerHTML='<div class="dw-hd"><b style="font-size:13.5px">'+id+'</b><span class="x" onclick="closeSug()">✕</span></div><div class="dw-bd"><p style="color:var(--dim);font-size:12px"><span class="spin"></span> 불러오는 중…</p></div>';
+  $('#drawer').classList.add('open'); $('#dwBg').classList.add('open');
+  let w; try{ w=await fetch('/api/wo?id='+encodeURIComponent(id)).then(r=>r.json()); }catch(e){ return; }
+  if(w.error){ $('#dwIn').innerHTML='<div class="dw-bd">조회 실패</div>'; return; }
+  const mk=pipeMark(w.state, w.qc);
+  const ico={done:'✓',now:'●',wait:'○',skip:'—'}, col={done:'var(--green)',now:'var(--acc)',wait:'var(--dim2)',skip:'var(--dim2)'};
+  const pipe=PIPE.map((p,i)=>`<div class="brow"><span class="bl" style="color:${col[mk[i]]};font-weight:700">${ico[mk[i]]} ${p[0]}</span><span class="bv" style="font-weight:400;color:#41506b">${p[1]}</span></div>`).join('');
+  const qc=w.qc;
+  const qcHtml = qc ? qc.attempts.map(a=>{
+    const rg=Object.entries(a.regions||{}).map(([k,v])=>`<span class="badge ${v>=qc.regPass?'b-green':'b-red'}" style="font-size:9px">${k} ${Math.round(v*100)}%</span>`).join(' ');
+    return `<div style="border:1px solid var(--line2);border-radius:8px;padding:9px 11px;margin-bottom:7px;background:${a.result==='PASS'?'var(--greenbg)':'#fdecea'}">
+      <div style="display:flex;align-items:center;gap:7px;font-size:12px"><b>${a.n}차 촬영</b>
+        <span class="mono" style="color:#41506b">화각 내 ${Math.round(a.coverage*100)}%</span>
+        <span class="badge ${a.result==='PASS'?'b-green':'b-red'}" style="margin-left:auto;font-size:9.5px">${a.result==='PASS'?'합격':'불합격'}</span></div>
+      <div style="margin-top:6px">${rg}</div>
+      ${a.reason?`<div style="margin-top:7px;font-size:11.5px;color:#8a2f22">✗ ${a.reason}</div>`:''}
+      ${a.replan?`<div style="margin-top:4px;font-size:11.5px;color:#7c5a10">↻ 재계획 — ${a.replan.detail}</div>`:''}</div>`;
+  }).join('') : '<div style="font-size:11.5px;color:var(--dim2)">아직 촬영 전입니다</div>';
+  const tl=(w.timeline||[]).slice().reverse().map(e=>`<div class="tl"><div class="tm">${fmtTime(e.at)}</div>
+    <div style="width:6px;height:6px;border-radius:50%;background:#2b5fa8;flex:none;margin-top:5px"></div>
+    <div class="td2"><b>${WOSTATE[e.state]||e.state}</b>${e.note?' — '+e.note:''} <span style="color:var(--dim2)">· ${e.by}</span></div></div>`).join('')
+    || '<div style="font-size:11.5px;color:var(--dim2)">기록 없음</div>';
+  const a=w.assess||{};
+  $('#dwIn').innerHTML=`
+    <div class="dw-hd"><span class="badge b-blue" style="font-size:9.5px">${WOSTATE[w.state]||w.state}</span>
+      <b style="font-size:13.5px">WO · ${w.id}</b><span class="x" onclick="closeSug()">✕</span></div>
+    <div class="dw-bd">
+      <div class="brow"><span class="bl">엔진 · 부위</span><span class="bv">${w.ac} · ${w.area}</span></div>
+      <div class="brow"><span class="bl">결함 · 위험도</span><span class="bv">${w.defect} · ${w.risk}</span></div>
+      <div class="brow"><span class="bl">담당 정비사</span><span class="bv">${w.tech?w.tech.id+' ('+w.tech.grade+')':'-'}</span></div>
+      <div class="brow"><span class="bl">로봇</span><span class="bv">${w.tech?w.tech.robot+' · MOBY + Indy7':'-'}</span></div>
+      <div class="dw-lbl">PHYSICAL AI 파이프라인</div>${pipe}
+      <div class="dw-lbl">촬영 품질 <span style="color:var(--dim2);font-weight:400">기준 화각 ${qc?Math.round(qc.covPass*100):90}% · 부위 ${qc?Math.round(qc.regPass*100):88}%</span></div>
+      ${qcHtml}
+      ${a.conf?`<div class="dw-lbl">AI 검출 신뢰도 <span style="color:var(--ink)" class="mono">${Math.round(a.conf*100)}%</span></div>
+      <div class="confbar"><i style="width:${Math.round(a.conf*100)}%"></i></div>
+      <div style="font-size:10.5px;color:var(--dim2);margin-top:5px">${a.why||''}</div>`:''}
+      <div class="dw-lbl">정비사 판정</div>
+      <div class="brow"><span class="bl">판정</span><span class="bv">${w.verdict||'대기 중'}</span></div>
+      <div class="brow"><span class="bl">촬영</span><span class="bv">${w.capturedBy==='robot'?'로봇':(w.capturedBy==='direct'?'직접':'-')}</span></div>
+      <div class="brow"><span class="bl">지식 환류</span><span class="bv">${w.hwanryu?'축적됨 ✓':'미축적'}</span></div>
+      <div class="dw-lbl">실행 이력 TIMELINE</div>${tl}
+      ${w.state==='AWAITING_APPROVAL'?`<div class="dw-acts"><button class="primary" onclick="approveWO('${w.id}')">수리 판정 승인</button></div>`:''}
+      <div style="text-align:center;font-size:10px;color:var(--dim2);margin-top:10px">
+        촬영 품질은 <b>PoC 재현</b>(작업 ID 기반) — 실시간 로봇 연결 아님 · 최종 판정은 정비사</div>
+    </div>`;
+}
+async function approveWO(id){
+  try{ await fetch('/api/works/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}); }catch(e){}
+  closeSug(); await load(); if(S.view==='knowledge') loadCases();
+}
+
 // ── AI 판단 근거 (제안 카드 + Drawer) ──
 let _curSug=null;
 function sugBadge(t){ return {'병목':'b-red','배분':'b-blue','품질':'b-amber','정상':'b-green'}[t]||'b-gray'; }
@@ -222,18 +298,21 @@ function viewOps(){
   const chip=s=>({'작업중':'b-green','승인 대기':'b-amber','대기':'b-gray','재촬영':'b-amber','오류→직접 전환':'b-red','충전/점검':'b-blue'}[s]||'b-gray');
   const rchip=s=>({'촬영중':'b-blue','이동중':'b-green','대기':'b-gray','충전중':'b-amber','오류':'b-red'}[s]||'b-gray');
   const lvchip=g=>({'숙련':'b-blue','중급':'b-gray','신입':'b-amber'}[g]||'b-gray');
-  const rows=(d.pairs||[]).map(p=>`<tr>
+  const rows=(d.pairs||[]).map(p=>`<tr${p.woId?` class="wor" onclick="openWO('${p.woId}')" title="클릭 — 이 Work Order 전체 추적"`:''}>
     <td style="width:150px"><b>${p.tech}</b> <span class="badge ${lvchip(p.grade)}" style="font-size:9px">${p.grade}</span>
       <div style="margin-top:4px;font-size:10.5px;color:var(--dim)"><span class="mono">🤖 ${p.robot}</span> <span class="badge ${rchip(p.rst)}" style="font-size:9px">${p.rst}</span></div></td>
-    <td><span class="mono" style="color:var(--acc);font-size:11px">${p.wo}</span>
+    <td><span class="mono" style="color:var(--acc);font-size:11px">${p.wo}</span>${p.state?`<span class="badge b-blue" style="font-size:9px;margin-left:5px">${WOSTATE[p.state]||p.state}</span>`:''}
       <div style="color:#41506b;font-size:11.5px;line-height:1.4">${p.task}</div>
       ${p.parallel?`<div style="display:inline-block;margin-top:4px;font-size:10px;color:#7c5a10;background:#fdf3d8;padding:1px 7px;border-radius:3px">⇄ 병행 — ${p.parallel}</div>`:''}</td>
     <td style="width:112px"><div style="font-size:11px;color:#41506b">${p.step}</div><div class="prog"><i style="width:${p.prog}%"></i></div></td>
     <td style="width:86px"><span class="badge ${chip(p.status)}">${p.status}</span></td>
     <td style="width:50px;text-align:right;color:var(--dim)" class="mono">${p.elapsed}</td></tr>`).join('');
-  const queue=S.works.filter(x=>x.status==='완료'&&x.verdict==='수리');
+  const queue=S.works.filter(x=>x.state==='AWAITING_APPROVAL');
   const qhtml=queue.length?queue.map(x=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line2)">
-    <span class="mono" style="color:var(--acc);font-size:11px;width:130px">${x.id}</span><div style="flex:1;font-size:12px;color:#41506b">${x.part} ${x.defect} — 수리 판정 승인 요청</div><div style="font-size:11px;color:var(--dim)">${x.tech||''}</div></div>`).join('')
+    <span class="mono" style="color:var(--acc);font-size:11px;width:118px;cursor:pointer" onclick="openWO('${x.id}')">${x.id}</span>
+    <div style="flex:1;font-size:12px;color:#41506b">${x.part} ${x.defect} — 수리 판정 승인 요청</div>
+    <div style="font-size:11px;color:var(--dim)">${x.owner||x.tech||''}</div>
+    <button onclick="approveWO('${x.id}')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:7px;border:1px solid var(--green);background:var(--greenbg);color:var(--green);cursor:pointer">승인</button></div>`).join('')
     :'<div style="padding:22px 16px;text-align:center;color:var(--dim2);font-size:12px">승인 대기 없음</div>';
   const fleet=(d.fleet||[]).map(f=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:7px;background:#f7f9fc;font-size:11px;color:#41506b"><div style="width:7px;height:7px;border-radius:50%;background:${f.dot}"></div>${f.label} <b class="mono" style="margin-left:auto">${f.n}</b></div>`).join('');
   const tl=(d.activity||[]).map(a=>`<div class="tl"><div class="tm">${fmtTime(a.at)}</div><div style="width:6px;height:6px;border-radius:50%;background:${a.kind==='ai'?'#2b5fa8':(a.verdict==='수리'?'#e05243':(a.verdict==='재검사'?'#d9a514':'#2e7d4f'))};flex:none;margin-top:5px"></div><div class="td2">${a.kind==='ai'?'🤖 ':''}${a.text}</div></div>`).join('');

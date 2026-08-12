@@ -418,8 +418,12 @@ function renderStage(){
   else if(STEP===3){ renderResult(); }
   else if(STEP===5){
     const f=FINDING||{}, w=CURWORK||{};
-    b.innerHTML='<div class="stage"><div class="done-c"><div class="ic">✅</div><h2>작업 기록 완료</h2>'+
-      '<p>검사 결과가 자동 저장되고<br><b>관리자 대시보드에 실시간 반영</b>됐어요.</p></div>'+
+    const re=(f.judge==='재검사'), rep=(f.judge==='수리');
+    b.innerHTML='<div class="stage"><div class="done-c"><div class="ic">'+(re?'↺':'✅')+'</div>'+
+      '<h2>'+(re?'재검사 요청됨':(rep?'수리 판정 · 승인 요청':'작업 기록 완료'))+'</h2>'+
+      '<p>'+(re?'이 작업은 <b>로봇 재촬영 대기</b>로 돌아갔습니다.<br>작업 목록에 다시 나타납니다.'
+             :(rep?'검사 결과가 저장되고<br><b>관리자 승인 대기큐</b>에 올라갔어요.'
+                  :'검사 결과가 자동 저장되고<br><b>관리자 대시보드에 실시간 반영</b>됐어요.'))+'</p></div>'+
       '<div class="recbox">'+
       '<div class="row"><span>작업</span><b>'+(w.id||'')+' · '+(w.part||'BLADE')+' '+(w.area||'HPC Stg4 · BLD-017')+'</b></div>'+
       '<div class="row"><span>촬영 방법</span><b>'+(captureBy==='direct'?'📷 직접':'🤖 로봇')+' <span class="auto">기록됨</span></b></div>'+
