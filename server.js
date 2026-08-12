@@ -560,6 +560,33 @@ function reportProgress(techId, workId, step){
   if(!L.workStart) L.workStart=now; L.lastActive=now;
 }
 function fmtMin(ms){ return Math.max(0,Math.round(ms/60000))+'분'; }
+// 가동보드용 파이프라인 한 줄 요약 — Work Order 의 실제 state/qc 에서만 만든다.
+//   tone: blue=진행 amber=재계획.대기 green=합격.완료 red=불합격
+function pipeOf(w){
+  if(!w) return null;
+  const q=w.qc, last=q&&q.attempts[q.attempts.length-1], fail=q&&q.attempts.find(a=>a.result==='FAIL');
+  const pct=a=>Math.round(a.coverage*100)+'%';
+  switch(w.state){
+    case 'IN_PROGRESS':
+      return {label:'작업 배정 확인', detail:'로봇 대기', tone:'blue'};
+    case 'ROBOT_EXECUTING':
+      return {label:'인지 · 촬영', detail:'Indy7 정렬 후 촬영', tone:'blue'};
+    case 'QUALITY_CHECK':
+      return fail
+        ? {label:'품질 판정 · 재계획', detail:'1차 '+pct(fail)+' 불합격 — '+fail.reason.replace(' 영역이 화각을 벗어남',' 이탈'), tone:'red'}
+        : {label:'품질 판정', detail: last?('화각 '+pct(last)):'판정 중', tone:'blue'};
+    case 'RECAPTURE':
+      return {label:'재촬영', detail: fail&&fail.replan?fail.replan.detail:'촬영 자세 재계산', tone:'amber'};
+    case 'AWAITING_INSPECTION':
+      return {label:'정비사 판정 대기', detail: q?('촬영 '+q.shots+'회 · 최종 '+pct(last)):'증거 확보', tone:'amber'};
+    case 'AWAITING_APPROVAL':
+      return {label:'관리자 승인 대기', detail:(w.verdict||'수리')+' 판정', tone:'amber'};
+    case 'COMPLETED':
+      return {label:'완료', detail:(w.verdict||'')+' 판정 기록', tone:'green'};
+    default:
+      return {label:'배정됨', detail:'착수 전', tone:'gray'};
+  }
+}
 // 가동보드 pair = 로그인 근무 중이면 세션 상태('작업중' 유지), 아니면 실제 배정 상태(대기/유휴)
 function livePairs(){
   const now=Date.now();
@@ -570,6 +597,7 @@ function livePairs(){
     if(L && now-(L.lastActive||0) < IDLE_MS){   // 로그인·근무 중인 세션
       if(waitN===0)   // 배정 작업 다 끝냄
         return { tech:t.id, grade:t.grade, robot:t.robot, rst:'충전중', wo:'—', woId:null, state:null,
+          pipe:{label:'유휴', detail:'배정 작업 완료', tone:'gray'},
           task:'배정 작업 모두 완료 · 유휴 (완료 '+doneN+'건)', step:'완료', prog:100, status:'완료',
           elapsed:fmtMin(now-(L.workStart||now)), parallel:null, real:true };
       // 세션(LIVE)과 Work Order 상태가 어긋나지 않게 파생 시점에 한 번 더 맞춘다.
@@ -579,6 +607,7 @@ function livePairs(){
       return { tech:t.id, grade:t.grade, robot:t.robot, rst: closed?'대기':(L.robot||'대기'),
         wo: closed?'—':(L.wo||'—'), woId: closed?null:(L.woId||null),
         state: closed?null:((lw&&lw.state)||null),
+        pipe:  closed?{label:'다음 작업 준비', detail:'직전 작업 완료', tone:'green'}:pipeOf(lw),
         task: closed?('직전 작업 완료('+(lw.verdict||'')+') · 다음 작업 준비'):(L.task||'점검'),
         step: closed?'다음 작업 준비':(L.stepLabel||'—'),
         prog: closed?100:(L.prog||0), status:L.status||'작업중',
@@ -588,7 +617,9 @@ function livePairs(){
     if(L) delete LIVE[t.id];   // 세션 만료 → 정리
     const idle = waitN>0;
     return { tech:t.id, grade:t.grade, robot:t.robot, rst: idle?'대기':'충전중',
-      wo:'—', woId:null, state:null, task: idle?('배정 대기 '+waitN+'건 · 완료 '+doneN+'건'):('배정 작업 완료 · 유휴 (완료 '+doneN+'건)'),
+      wo:'—', woId:null, state:null,
+      pipe: idle?{label:'착수 전', detail:'배정 대기 '+waitN+'건', tone:'gray'}
+                :{label:'유휴', detail:'배정 작업 완료', tone:'gray'}, task: idle?('배정 대기 '+waitN+'건 · 완료 '+doneN+'건'):('배정 작업 완료 · 유휴 (완료 '+doneN+'건)'),
       step:'—', prog:0, status: idle?'대기':'유휴', elapsed:'—', parallel:null, real:false };
   });
 }
@@ -647,21 +678,32 @@ function autoTick(){
       if(s===1) setState(w,'IN_PROGRESS','자동재생','작업 시작');
       else if(s===2) setState(w,'ROBOT_EXECUTING','자동재생','로봇 촬영 시작');
       else if(s===3){
+        // 품질 판정. 실패면 여기서 한 틱 머문다 -> 보드에 '1차 불합격'이 실제로 보인다
         setState(w,'QUALITY_CHECK','robot','촬영 품질 판정');
-        const q=qcRun(w);
+        qcRun(w);
+      }
+      else if(s===4){
+        const q=w.qc;
         if(q && q.attempts.length>1){
+          // 재촬영도 한 틱 노출 (원인과 재계획 내용을 보드에서 읽을 수 있게)
           const fa=q.attempts[0];
           setState(w,'RECAPTURE','robot','1차 '+Math.round(fa.coverage*100)+'% 불합격 — '+fa.reason+' → '+fa.replan.detail);
-          setState(w,'QUALITY_CHECK','robot','재촬영 후 재판정');
+        }else{
+          setState(w,'AWAITING_INSPECTION','robot','정비사 판정 대기');
         }
       }
-      else if(s===4) setState(w,'AWAITING_INSPECTION','robot','정비사 판정 대기');
+      else if(s===5){
+        const q=w.qc;
+        if(q && q.attempts.length>1) setState(w,'QUALITY_CHECK','robot','재촬영 후 재판정');
+        setState(w,'AWAITING_INSPECTION','robot','정비사 판정 대기');
+      }
     }
     A.woId=A.curId;
     A.wo='WO·'+A.curId; A.task=w?(w.ac+' '+w.part+' '+w.area+' — '+w.defect+' 점검'):'점검';
     A.stepNum=s;
     // 5단계는 아직 판정 전이다 (판정은 다음 틱의 autoComplete). 라벨을 상태와 맞춘다.
-    A.stepLabel = (s===5) ? '5/5 정비사 판정 대기' : (s+'/5 '+STEP_NAMES[s-1]);
+    A.stepLabel = (w && w.state==='RECAPTURE') ? (s+'/5 재촬영')
+                : (s===5) ? '5/5 정비사 판정 대기' : (s+'/5 '+STEP_NAMES[s-1]);
     A.robot=STEP_ROBOT[s-1];
     A.prog=Math.round(s/5*100); A.status='작업중'; A.lastActive=now;
   });

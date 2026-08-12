@@ -92,6 +92,7 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .sugc{border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-top:9px;background:#fafcff;cursor:pointer;transition:.12s}
   .sugc:hover{border-color:#9fb2cc;background:#f5f9ff}
+  @keyframes pl{0%,100%{opacity:1}50%{opacity:.25}}
   tr.wor{cursor:pointer}
   .qrow:hover{background:#f4f8fd}
   .tl.tlw{cursor:pointer;border-radius:6px}
@@ -172,6 +173,20 @@ function ct(label,en,val,note,color){ return `<div class="ct"><div class="cl">${
   <div style="display:flex;align-items:baseline;gap:6px"><div class="cv" style="color:${color||'var(--ink)'}">${val}</div><div class="cn">${note||''}</div></div></div>`; }
 function bar(lb,n,max,color){ const w=Math.max(6,Math.round(n/max*100)); return `<div class="rowbar"><div class="lb">${lb}</div><div class="tk"><i style="width:${w}%;background:${color}"></i></div><div class="nm">${n}</div></div>`; }
 function fmtTime(iso){ if(!iso) return ''; try{return new Date(iso).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';} }
+
+// 가동보드 파이프라인 셀 — 값은 전부 서버가 Work Order 실제 상태에서 만든 것 (4초 폴링으로 자동 갱신)
+const PIPETONE={blue:['#2b5fa8','#eaf1fb'],amber:['#7c5a10','#fdf3d8'],
+                green:['#2e7d4f','#e8f5ee'],red:['#b3261e','#fdecea'],gray:['#8b95a5','#f2f4f7']};
+function pipeCell(p){
+  if(!p) return '<span style="color:var(--dim2);font-size:11px">—</span>';
+  const [fg,bg]=PIPETONE[p.tone]||PIPETONE.gray;
+  return `<div style="display:inline-flex;align-items:center;gap:5px;background:${bg};color:${fg};
+      border-radius:5px;padding:2px 7px;font-size:10.5px;font-weight:700;max-width:100%">
+      <span style="width:6px;height:6px;border-radius:50%;background:${fg};flex:none${p.tone==='blue'||p.tone==='red'?';animation:pl 1.2s ease-in-out infinite':''}"></span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.label}</span></div>
+    <div style="margin-top:3px;font-size:10.5px;color:#41506b;line-height:1.35;
+      display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">${p.detail||''}</div>`;
+}
 
 // ── Work Order 추적 Drawer ──
 //  하나의 WO를 배정 -> 로봇 실행 -> 품질 판정 -> 재촬영 -> 정비사 판정 -> 승인 -> 완료까지
@@ -307,6 +322,7 @@ function viewOps(){
     <td><span class="mono" style="color:var(--acc);font-size:11px">${p.wo}</span>${p.state?`<span class="badge b-blue" style="font-size:9px;margin-left:5px">${WOSTATE[p.state]||p.state}</span>`:''}
       <div style="color:#41506b;font-size:11.5px;line-height:1.4">${p.task}</div>
       ${p.parallel?`<div style="display:inline-block;margin-top:4px;font-size:10px;color:#7c5a10;background:#fdf3d8;padding:1px 7px;border-radius:3px">⇄ 병행 — ${p.parallel}</div>`:''}</td>
+    <td style="width:186px">${pipeCell(p.pipe)}</td>
     <td style="width:112px"><div style="font-size:11px;color:#41506b">${p.step}</div><div class="prog"><i style="width:${p.prog}%"></i></div></td>
     <td style="width:86px"><span class="badge ${chip(p.status)}">${p.status}</span></td>
     <td style="width:50px;text-align:right;color:var(--dim)" class="mono">${p.elapsed}</td></tr>`).join('');
@@ -325,7 +341,7 @@ function viewOps(){
     <div class="col">
       <div class="card"><div class="ch"><b>가동 보드</b><small>정비사·로봇 5쌍 · 지금 누가/무엇이 어디서 막혔나</small>
         <span onclick="toggleAuto()" title="혼자 시연용 — 미로그인 정비사 자동 진행" style="margin-left:auto;cursor:pointer;font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:14px;border:1px solid ${d.autoDemo?'#bfe3cd':'var(--line)'};background:${d.autoDemo?'var(--greenbg)':'#fff'};color:${d.autoDemo?'var(--green)':'var(--dim)'}">데모 자동재생 ${d.autoDemo?'● ON':'○ OFF'}</span></div>
-        <table><thead><tr><th>정비사 · 로봇</th><th>현재 작업 Work Order</th><th>단계</th><th>상태</th><th style="text-align:right">경과</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>정비사 · 로봇</th><th>현재 작업 Work Order</th><th>Physical AI 실시간</th><th>단계</th><th>상태</th><th style="text-align:right">경과</th></tr></thead><tbody>${rows}</tbody></table>
         ${(d.pairs||[]).some(p=>p.woId)?'':`<div style="padding:9px 16px;font-size:11.5px;color:#7c5a10;background:#fdf3d8;border-top:1px solid var(--line2)">
           지금 진행 중인 작업이 없습니다 — 정비사가 로그인해 작업을 시작하거나 <b>데모 자동재생</b>을 켜면 여기에 표시됩니다.
           지난 작업은 아래 <b>승인 대기큐</b>나 <b>활동 이력</b>을 눌러 추적할 수 있습니다.</div>`}
