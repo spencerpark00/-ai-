@@ -1174,7 +1174,10 @@ const server = http.createServer(async (req,res)=>{
   if(u.pathname === '/api/robot'){
     // 촬영 평가는 지식그래프와 무관하다 -> 그래프가 죽어도 정비사 화면은 계속 돌아야 한다
     const w = WORKS.find(x=>x.id===u.searchParams.get('work'));
-    const out = { assess: assess(w) };
+    // 촬영 시점이 곧 품질 판정 시점이다 -> 정비사 화면도 같은 판단 내용을 받는다
+    //   (관리자만 보고 정비사는 못 보면, 그 사진으로 판정할 사람이 근거를 모른 채 판정하게 된다)
+    if(w) qcRun(w);
+    const out = { assess: assess(w), qc: w? w.qc : null };
     try{
       out.scene = (await cypher(Q_ROBOT, {}))[0] || null;
       out.part  = (await cypher(Q_PART, {part:'BLADE'}))[0] || null;

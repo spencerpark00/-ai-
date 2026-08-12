@@ -323,7 +323,7 @@ const DEFINFO={
     tools:[['검사 조명 · 확대경',1],['뎁스 게이지',1],['버니어 캘리퍼',1],['블렌딩 툴',0]],
     acts:['손상 형태·범위 확인','교범 허용한도 대조','한도 이내 → 수리 후 사용','한도 초과 → 교체','처리 결과 기록·재촬영']},
 };
-let WORKS=[], CURWORK=null, STEP=0, FINDING=null, ASSESS=null;
+let WORKS=[], CURWORK=null, STEP=0, FINDING=null, ASSESS=null, QC=null;
 const RISKB={긴급:['red','🔴'],주의:['org','🟠'],정상:['yel','🟢']};
 
 async function boot(){
@@ -454,6 +454,13 @@ function renderResult(){
       + ' · 품질 '+Math.round((a.quality||0.92)*100)+'%';
   document.getElementById('body').innerHTML='<div class="stage">'+
     '<div class="capbar">'+capBar+' <span class="ok">증거 저장됨 ✓</span></div>'+
+    // 로봇이 다시 찍은 경우에만 — 왜 다시 찍었는지 한 줄. 이 사진으로 판정할 사람이 알아야 한다.
+    (function(){ const f0=QC&&QC.attempts&&QC.attempts.find(a=>a.result==='FAIL'); if(!f0) return '';
+      const l=QC.attempts[QC.attempts.length-1];
+      return '<div class="recap"><b>↻ 로봇이 스스로 다시 촬영했습니다</b>'+
+        '<div class="rl">1차 '+Math.round(f0.coverage*100)+'% — '+f0.reason+
+        '<br>'+(f0.replan?'→ '+f0.replan.detail+' 후 재촬영 → ':'→ 재촬영 → ')+
+        Math.round(l.coverage*100)+'% 합격</div></div>'; })()+
     // ── 결함 + 신뢰도 (한 덩어리로) ──
     '<div class="result">'+
       '<div class="risk '+rk[0]+'"><div class="lv">'+(rk[0]==='red'?'🔴':(rk[0]==='org'?'🟠':(rk[0]==='yel'?'🟡':'🟢')))+' '+rk[1]+'</div><div class="sub">'+rk[2]+'</div></div>'+
@@ -594,16 +601,58 @@ function openRobot(by){
   document.getElementById('mBody').innerHTML='<div style="color:var(--dim2);font-size:12.5px;padding:12px"><span class="spin"></span> '+msg+'</div>';
   // 작업 ID를 넘겨 그 작업 고유의 신뢰도.품질을 받는다 (같은 작업 = 항상 같은 값)
   fetch('/api/robot?work='+encodeURIComponent((CURWORK&&CURWORK.id)||'')).then(r=>r.json()).then(j=>{
-    const sc=j.scene||{}; ASSESS=j.assess||null;
+    const sc=j.scene||{}; ASSESS=j.assess||null; QC=j.qc||null;
     const conf=ASSESS?ASSESS.conf:(sc.candConf!=null?sc.candConf:0.87);
     const quality=ASSESS?ASSESS.quality:(sc.quality!=null?sc.quality:0.92);
     document.getElementById('bbt').textContent='CORROSION '+conf;
-    setTimeout(()=>{
-      document.getElementById('mBody').innerHTML='<p style="font-size:13px;color:var(--txt);margin-bottom:6px">촬영 완료 · 품질 <b>'+Math.round(quality*100)+'%</b> ✓'+(ASSESS&&ASSESS.shots>1?' <span style="color:var(--warn)">(재촬영 '+ASSESS.shots+'회)</span>':'')+'</p>'+
-        '<p style="font-size:12px;color:var(--dim);margin-bottom:12px">AI가 이상 후보를 표시했어요.</p>'+
-        '<button class="btn main" onclick="captured('+conf+')">AI 결과 보기 →</button>';
-    },1500);
+    runPipeline(conf, quality);
   }).catch(()=>{setTimeout(()=>{document.getElementById('mBody').innerHTML='<button class="btn main" onclick="captured(0.87)">AI 결과 보기 →</button>';},1200);});
+}
+// 로봇이 지금 무엇을 하고 있는지 — 단계를 실제 검사 결과대로 하나씩 띄운다.
+//   문구.수치는 전부 서버가 준 값(QC). 화면은 순서와 속도만 담당한다.
+function pipeSteps(){
+  const pct=a=>Math.round(a.coverage*100)+'%';
+  const st=[['ok','인지','블레이드 위치·자세 검출'],
+            ['ok','계획','촬영 자세 계산 — 장축에 카메라 정렬']];
+  if(!QC || !QC.attempts){ st.push(['ok','촬영','요구컷 3장']); return st; }
+  QC.attempts.forEach((a,i)=>{
+    st.push(['ok', i===0?'촬영':'재촬영', (a.n)+'차 — 화각 내 '+pct(a)]);
+    if(a.result==='FAIL'){
+      st.push(['no','품질 판정', a.reason]);
+      if(a.replan) st.push(['re','재계획', a.replan.detail]);
+    }else{
+      st.push(['ok','품질 판정','합격 — 부위별 기준 충족']);
+    }
+  });
+  return st;
+}
+function runPipeline(conf, quality){
+  const ICO={ok:['✓','var(--ok)'], no:['✗','var(--dang)'], re:['↻','var(--warn)']};
+  const steps=pipeSteps();
+  const mb=document.getElementById('mBody');
+  mb.innerHTML='<div class="rpipe" id="rpipe"></div>'+
+    '<div id="rdone" style="display:none"></div>';
+  const box=document.getElementById('rpipe');
+  let i=0;
+  (function tick(){
+    if(i>=steps.length){
+      const d=document.getElementById('rdone');
+      const shots=(QC&&QC.shots)||1;
+      d.innerHTML='<p style="font-size:12.5px;color:var(--txt);margin:10px 0 4px">촬영 완료 · 품질 <b>'+Math.round(quality*100)+'%</b> ✓'+
+        (shots>1?' <span style="color:var(--warn)">(로봇이 스스로 '+shots+'회 촬영)</span>':'')+'</p>'+
+        '<p style="font-size:11.5px;color:var(--dim);margin-bottom:12px">AI가 이상 후보를 표시했어요.</p>'+
+        '<button class="btn main" onclick="captured('+conf+')">AI 결과 보기 →</button>';
+      d.style.display='block';
+      return;
+    }
+    const [k,t,x]=steps[i]; const [ic,col]=ICO[k];
+    const el=document.createElement('div');
+    el.className='rstep'; el.style.setProperty('--c',col);
+    el.innerHTML='<span class="ri" style="color:'+col+'">'+ic+'</span>'+
+      '<span class="rt">'+t+'</span><span class="rx">'+x+'</span>';
+    box.appendChild(el); i++;
+    setTimeout(tick, k==='ok'?620:900);
+  })();
 }
 const DEFC={부식:'CORRODED',균열:'CRACKED',찍힘:'DENTED',마모:'WORN',흠집:'GOUGED',손상:'DAMAGED'};
 function captured(conf){const c=(CURWORK&&DEFC[CURWORK.defect])||'CORRODED';FINDING={cond:c,conf:conf};closeModal();go(3);}
