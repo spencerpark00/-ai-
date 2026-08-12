@@ -85,6 +85,23 @@
   .rbody .row span{color:var(--dim);font-size:12.5px}.rbody .row b{color:var(--txt);font-weight:600}
   .rbody .row .big{font-size:16px}
   /* 결함 설명·조치 순서 (가독성) */
+  /* 로봇 실행 — 지나가는 단계 / 남는 결과 */
+  .rlive{font-size:12.5px;color:var(--dim);padding:14px 4px;display:flex;align-items:center;gap:8px}
+  .rcards{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:4px 0 10px}
+  .rc{background:#131a24;border:1px solid var(--line);border-radius:11px;padding:11px 12px}
+  .rc.ok{border-color:rgba(74,222,128,.35);background:rgba(74,222,128,.06)}
+  .rc .rk{font-size:10.5px;font-weight:700;color:var(--dim);letter-spacing:.3px}
+  .rc .rv{font-size:19px;font-weight:800;color:var(--txt);margin-top:4px;line-height:1.1}
+  .rc.ok .rv{color:var(--ok)}
+  .rc .rs{font-size:11px;color:var(--dim2);margin-top:5px;line-height:1.4}
+  .rre{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:9px;
+    padding:9px 11px;font-size:11.5px;color:#e4d5ae;line-height:1.55;margin-bottom:10px}
+  .rdone{font-size:12.5px;color:var(--txt);margin-bottom:11px}
+  .rdone b{color:var(--ok)}
+  /* 결과 화면 - 재촬영 사유 요약 */
+  .recap{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:10px;
+    padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--warn)}
+  .recap .rl{color:#e4d5ae;font-size:11.5px;line-height:1.55;margin-top:5px;font-weight:400}
 .capbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--dim);
     background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:12px}
   .capbar .ok{margin-left:auto;color:var(--ok);font-weight:700}
@@ -480,9 +497,11 @@ function renderResult(){
       '<div class="tm">예상 약 25분 · 최종 판정은 정비사가 합니다</div></div>'+
     // ── 준비할 공구 (체크) ──
     (tools.length?'<div class="tools"><div class="tt">🧰 준비할 공구 <span class="cnt" id="tcnt">0/'+tools.length+'</span></div>'+
-      tools.map((t,i)=>'<label class="ti"><input type="checkbox" onchange="tchk()"><span class="tn">'+t[0]+'</span>'+
-        (t[1]?'<span class="rb">🤖 로봇 전달</span>':'')+'</label>').join('')+
-      '<div class="tf">🤖 표시는 로봇이 가져다줄 수 있는 공구입니다</div></div>':'')+
+      // 공구 전달(Tool Control)은 이번 PoC 범위가 아니다.
+      //   로봇이 실제로 가져다주지 못하는데 '로봇 전달'이라고 쓰면 화면이 지키지 못할 약속을 하게 된다.
+      //   DEFINFO 의 두 번째 값(전달 가능 여부)은 그 기능을 붙일 때 되살린다.
+      tools.map(t=>'<label class="ti"><input type="checkbox" onchange="tchk()"><span class="tn">'+t[0]+'</span></label>').join('')+
+      '</div>':'')+
     // ── 조치 순서 ──
     '<div class="expl">'+
       '<div class="et">🛠 조치 순서</div>'+
@@ -608,51 +627,40 @@ function openRobot(by){
     runPipeline(conf, quality);
   }).catch(()=>{setTimeout(()=>{document.getElementById('mBody').innerHTML='<button class="btn main" onclick="captured(0.87)">AI 결과 보기 →</button>';},1200);});
 }
-// 로봇이 지금 무엇을 하고 있는지 — 단계를 실제 검사 결과대로 하나씩 띄운다.
-//   문구.수치는 전부 서버가 준 값(QC). 화면은 순서와 속도만 담당한다.
-function pipeSteps(){
-  const pct=a=>Math.round(a.coverage*100)+'%';
-  const st=[['ok','인지','블레이드 위치·자세 검출'],
-            ['ok','계획','촬영 자세 계산 — 장축에 카메라 정렬']];
-  if(!QC || !QC.attempts){ st.push(['ok','촬영','요구컷 3장']); return st; }
-  QC.attempts.forEach((a,i)=>{
-    st.push(['ok', i===0?'촬영':'재촬영', (a.n)+'차 — 화각 내 '+pct(a)]);
-    if(a.result==='FAIL'){
-      st.push(['no','품질 판정', a.reason]);
-      if(a.replan) st.push(['re','재계획', a.replan.detail]);
-    }else{
-      st.push(['ok','품질 판정','합격 — 부위별 기준 충족']);
-    }
-  });
-  return st;
-}
+// 로봇이 지금 무엇을 하고 있는지.
+//   인지.계획.정렬은 '지나가는 단계'로 한 줄에 갈아 끼우고 끝나면 지운다.
+//   촬영 결과와 품질 판정은 '남는 정보'로 두 칸에 고정 —
+//   촬영 도는 동안 다른 일을 하다 돌아와도 확인할 수 있어야 한다.
 function runPipeline(conf, quality){
-  const ICO={ok:['✓','var(--ok)'], no:['✗','var(--dang)'], re:['↻','var(--warn)']};
-  const steps=pipeSteps();
   const mb=document.getElementById('mBody');
-  mb.innerHTML='<div class="rpipe" id="rpipe"></div>'+
-    '<div id="rdone" style="display:none"></div>';
-  const box=document.getElementById('rpipe');
+  mb.innerHTML='<div class="rlive" id="rlive"></div><div id="rres"></div>';
+  const live=document.getElementById('rlive');
+  const pass=['블레이드 위치·자세를 찾는 중…','촬영 자세를 계산하는 중…','로봇 팔 정렬 · 촬영 중…'];
   let i=0;
-  (function tick(){
-    if(i>=steps.length){
-      const d=document.getElementById('rdone');
-      const shots=(QC&&QC.shots)||1;
-      d.innerHTML='<p style="font-size:12.5px;color:var(--txt);margin:10px 0 4px">촬영 완료 · 품질 <b>'+Math.round(quality*100)+'%</b> ✓'+
-        (shots>1?' <span style="color:var(--warn)">(로봇이 스스로 '+shots+'회 촬영)</span>':'')+'</p>'+
-        '<p style="font-size:11.5px;color:var(--dim);margin-bottom:12px">AI가 이상 후보를 표시했어요.</p>'+
-        '<button class="btn main" onclick="captured('+conf+')">AI 결과 보기 →</button>';
-      d.style.display='block';
-      return;
-    }
-    const [k,t,x]=steps[i]; const [ic,col]=ICO[k];
-    const el=document.createElement('div');
-    el.className='rstep'; el.style.setProperty('--c',col);
-    el.innerHTML='<span class="ri" style="color:'+col+'">'+ic+'</span>'+
-      '<span class="rt">'+t+'</span><span class="rx">'+x+'</span>';
-    box.appendChild(el); i++;
-    setTimeout(tick, k==='ok'?620:900);
+  (function step(){
+    if(i<pass.length){ live.innerHTML='<span class="spin"></span> '+pass[i]; i++; return setTimeout(step,900); }
+    live.style.display='none';
+    showResult(conf, quality);
   })();
+}
+function showResult(conf, quality){
+  const at=(QC&&QC.attempts)||[];
+  const last=at.length?at[at.length-1]:null;
+  const fail=at.find(a=>a.result==='FAIL');
+  const shots=(QC&&QC.shots)||1;
+  const pct=a=>Math.round(a.coverage*100)+'%';
+  const regs=last&&last.regions?Object.keys(last.regions).join(' · '):'팁 · 루트 · 엣지';
+  document.getElementById('rres').innerHTML=
+    '<div class="rcards">'+
+      '<div class="rc"><div class="rk">📷 촬영</div><div class="rv">'+shots+'회</div>'+
+        '<div class="rs">'+(last?'사진에 담김 '+pct(last):'-')+'</div></div>'+
+      '<div class="rc ok"><div class="rk">✓ 품질 판정</div><div class="rv">합격</div>'+
+        '<div class="rs">'+regs+' 모두 확보</div></div>'+
+    '</div>'+
+    (fail?'<div class="rre">↻ 1차 '+pct(fail)+' — '+fail.reason+
+       (fail.replan?'<br>'+fail.replan.detail+' 후 다시 촬영':'')+'</div>':'')+
+    '<div class="rdone">촬영 완료 · 품질 <b>'+Math.round(quality*100)+'%</b></div>'+
+    '<button class="btn main" onclick="captured('+conf+')">AI 결과 보기 →</button>';
 }
 const DEFC={부식:'CORRODED',균열:'CRACKED',찍힘:'DENTED',마모:'WORN',흠집:'GOUGED',손상:'DAMAGED'};
 function captured(conf){const c=(CURWORK&&DEFC[CURWORK.defect])||'CORRODED';FINDING={cond:c,conf:conf};closeModal();go(3);}

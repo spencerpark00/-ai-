@@ -573,8 +573,8 @@ function pipeOf(w){
       return {label:'인지 · 촬영', detail:'Indy7 정렬 후 촬영', tone:'blue'};
     case 'QUALITY_CHECK':
       return fail
-        ? {label:'품질 판정 · 재계획', detail:'1차 '+pct(fail)+' 불합격 — '+fail.reason.replace(' 영역이 화각을 벗어남',' 이탈'), tone:'red'}
-        : {label:'품질 판정', detail: last?('화각 '+pct(last)):'판정 중', tone:'blue'};
+        ? {label:'품질 판정 · 재계획', detail:'1차 '+pct(fail)+' 불합격 — '+fail.reason, tone:'red'}
+        : {label:'품질 판정', detail: last?('사진에 담김 '+pct(last)):'판정 중', tone:'blue'};
     case 'RECAPTURE':
       return {label:'재촬영', detail: fail&&fail.replan?fail.replan.detail:'촬영 자세 재계산', tone:'amber'};
     case 'AWAITING_INSPECTION':
@@ -1267,7 +1267,7 @@ function qcRun(w){
       ? { kind:'tilt',  detail:'카메라 이동 + 광축 0° → +12°' }
       : { kind:'dist',  detail:'촬영 거리 확보 · 높이 0.50 m → 0.60 m' };
     attempts.push({ n:1, coverage:cov1, regions:mk(cov1, bad), result:'FAIL',
-                    reason:region+' 영역이 화각을 벗어남', replan });
+                    reason:region+'가 사진에서 잘림', replan });
     attempts.push({ n:2, coverage:a.quality, regions:mk(a.quality, -1), result:'PASS' });
   }else{
     attempts.push({ n:1, coverage:a.quality, regions:mk(a.quality, -1), result:'PASS' });
