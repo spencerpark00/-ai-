@@ -85,6 +85,38 @@
   .rbody .row span{color:var(--dim);font-size:12.5px}.rbody .row b{color:var(--txt);font-weight:600}
   .rbody .row .big{font-size:16px}
   /* 결함 설명·조치 순서 (가독성) */
+  /* 촬영 중 — 결과 사진을 바로 띄우지 않는다 (실제로 찍는 동안을 보여준다) */
+  .cam.shooting img{filter:brightness(.28) contrast(1.05) blur(3px)}
+  .cam .shoot{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:9px;z-index:4;color:var(--txt)}
+  .cam.shooting .shoot{display:flex}
+  .cam .shoot .ring{width:38px;height:38px;border-radius:50%;border:2.5px solid rgba(167,139,250,.25);
+    border-top-color:var(--robot);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cam .shoot .st{font-size:12.5px;font-weight:700;letter-spacing:.3px}
+  .cam .shoot .ss{font-size:11px;color:var(--dim)}
+  .cam .shoot .cnt{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--robot);
+    background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.35);border-radius:20px;padding:2px 10px}
+  .cam .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5}
+  .cam .flash.on{animation:fl .42s ease-out}
+  @keyframes fl{0%{opacity:.85}100%{opacity:0}}
+  /* 촬영 컷 — 몇 번 찍었는지 눈으로 보이게 */
+  .shots{display:flex;gap:8px;margin:2px 0 11px}
+  .shot{flex:1;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#0e1622;position:relative}
+  .shot img{width:100%;height:74px;object-fit:cover;display:block;filter:brightness(.85)}
+  .shot .cap{display:flex;align-items:center;gap:5px;padding:6px 8px;font-size:11px}
+  .shot .n{font-weight:800;color:var(--txt)}
+  .shot .pc{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px}
+  .shot.fail{border-color:rgba(248,113,113,.45)}
+  .shot.fail .pc{color:var(--dang)}
+  .shot.fail img{filter:brightness(.55) contrast(.9)}
+  .shot.pass{border-color:rgba(74,222,128,.45)}
+  .shot.pass .pc{color:var(--ok)}
+  .shot .tag{position:absolute;top:6px;left:6px;font-size:9.5px;font-weight:700;padding:2px 7px;
+    border-radius:20px;background:rgba(0,0,0,.6)}
+  .shot.fail .tag{color:var(--dang)} .shot.pass .tag{color:var(--ok)}
+  .shot .cut{position:absolute;right:0;top:0;bottom:0;background:repeating-linear-gradient(45deg,
+    rgba(248,113,113,.22) 0 6px, transparent 6px 12px);border-left:2px dashed rgba(248,113,113,.7)}
   /* 로봇 실행 — 지나가는 단계 / 남는 결과 */
   .rlive{font-size:12.5px;color:var(--dim);padding:14px 4px;display:flex;align-items:center;gap:8px}
   .rcards{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:4px 0 10px}
@@ -285,7 +317,7 @@
 <div class="modal" id="modal"><div class="msheet">
   <div class="sh">🤖 로봇 촬영 <span style="font-size:11px;color:var(--dim);font-weight:400" id="mLoc"></span><span class="x" onclick="closeModal()">✕</span></div>
   <!-- 시뮬 연동: assets/sim.mp4 를 넣으면 로봇 촬영 화면이 자동으로 영상 재생 (없으면 정지 이미지 폴백). 규격: 풀HD·1배속·H.264 -->
-  <div class="cam"><div class="lbl"><span class="rc"></span>CAM-01 · HPC 블레이드</div><img id="camImg" alt="검사" style="background:#0b1119"><video id="simVid" muted playsinline loop preload="none" style="display:none"></video><span class="simtag" id="simTag" style="display:none">PyBullet 시뮬</span><div class="ov"></div><div class="scan"></div><div class="bb"><span class="bbt" id="bbt">CORROSION</span></div></div>
+  <div class="cam"><div class="lbl"><span class="rc"></span>CAM-01 · HPC 블레이드</div><img id="camImg" alt="검사" style="background:#0b1119"><video id="simVid" muted playsinline loop preload="none" style="display:none"></video><span class="simtag" id="simTag" style="display:none">PyBullet 시뮬</span><div class="ov"></div><div class="scan"></div><div class="shoot"><div class="ring"></div><div class="st" id="shTitle">촬영 중</div><div class="ss" id="shSub">로봇이 자세를 잡고 있습니다</div><div class="cnt" id="shCnt">1차</div></div><div class="flash" id="shFlash"></div><div class="bb"><span class="bbt" id="bbt">CORROSION</span></div></div>
   <div class="mbody" id="mBody"></div>
 </div></div>
 
@@ -340,7 +372,7 @@ const DEFINFO={
     tools:[['검사 조명 · 확대경',1],['뎁스 게이지',1],['버니어 캘리퍼',1],['블렌딩 툴',0]],
     acts:['손상 형태·범위 확인','교범 허용한도 대조','한도 이내 → 수리 후 사용','한도 초과 → 교체','처리 결과 기록·재촬영']},
 };
-let WORKS=[], CURWORK=null, STEP=0, FINDING=null, ASSESS=null, QC=null;
+let WORKS=[], CURWORK=null, STEP=0, FINDING=null, ASSESS=null, QC=null, SHOTIMG=null;
 const RISKB={긴급:['red','🔴'],주의:['org','🟠'],정상:['yel','🟢']};
 
 async function boot(){
@@ -621,8 +653,8 @@ function openRobot(by){
   // 작업 ID를 넘겨 그 작업 고유의 신뢰도.품질을 받는다 (같은 작업 = 항상 같은 값)
   fetch('/api/robot?work='+encodeURIComponent((CURWORK&&CURWORK.id)||'')).then(r=>r.json()).then(j=>{
     const sc=j.scene||{}; ASSESS=j.assess||null; QC=j.qc||null;
-    // 결함 종류에 맞는 실사진으로 교체 (서버가 작업 ID로 고정 -> 관리자 화면과 같은 사진)
-    if(j.image){ const im=document.querySelector('.cam img'); if(im) im.src=j.image; }
+    // 사진은 촬영이 끝난 뒤에 공개한다. 바로 띄우면 '이미 준비된 사진'으로 보인다.
+    SHOTIMG = j.image || null;
     const bl=document.querySelector('.cam .lbl');
     if(bl) bl.innerHTML='<span class="rc"></span>CAM-01 · '+((CURWORK&&CURWORK.area)||'HPC 블레이드');
     const conf=ASSESS?ASSESS.conf:(sc.candConf!=null?sc.candConf:0.87);
@@ -640,12 +672,44 @@ function runPipeline(conf, quality){
   const mb=document.getElementById('mBody');
   mb.innerHTML='<div class="rlive" id="rlive"></div><div id="rres"></div>';
   const live=document.getElementById('rlive');
-  const pass=['블레이드 위치·자세를 찾는 중…','촬영 자세를 계산하는 중…','로봇 팔 정렬 · 촬영 중…'];
+  const cam=document.querySelector('.cam');
+  const im=document.getElementById('camImg');
+  if(im) im.removeAttribute('src');          // 이전 사진 지우고 시작
+  const at=(QC&&QC.attempts)||[];
+  const shots=at.length||1;
+  cam.classList.add('shooting');
+
+  // 촬영 1회당: 자세 잡기 -> 셔터 -> 품질 판정. 실패하면 재계획 문구가 더 붙는다.
+  const seq=[];
+  at.forEach((a,i)=>{
+    const n=a.n||i+1;
+    seq.push({t:900, cnt:n+'차', title:'자세 잡는 중', sub:i===0?'블레이드 위치·각도 확인':'새로 계산한 자세로 이동',
+              live:'로봇 팔 정렬 중…'});
+    seq.push({t:700, cnt:n+'차', title:'촬영', sub:'요구컷 3장', flash:true, live:n+'차 촬영 중…'});
+    if(a.result==='FAIL')
+      seq.push({t:1100, cnt:n+'차', title:'품질 미달', sub:a.reason, live:'촬영 결과 판정 중…'});
+    else
+      seq.push({t:700, cnt:n+'차', title:'품질 확인', sub:'사진에 담김 '+Math.round(a.coverage*100)+'%', live:'촬영 결과 판정 중…'});
+  });
+  if(!at.length) seq.push({t:1500, cnt:'1차', title:'촬영', sub:'요구컷 3장', flash:true, live:'촬영 중…'});
+
   let i=0;
   (function step(){
-    if(i<pass.length){ live.innerHTML='<span class="spin"></span> '+pass[i]; i++; return setTimeout(step,900); }
-    live.style.display='none';
-    showResult(conf, quality);
+    if(i>=seq.length){
+      cam.classList.remove('shooting');
+      if(im && SHOTIMG) im.src=SHOTIMG;      // 여기서 처음으로 사진 공개
+      live.style.display='none';
+      showResult(conf, quality);
+      return;
+    }
+    const s=seq[i++];
+    document.getElementById('shCnt').textContent=s.cnt;
+    document.getElementById('shTitle').textContent=s.title;
+    document.getElementById('shSub').textContent=s.sub;
+    live.innerHTML='<span class="spin"></span> '+s.live;
+    if(s.flash){ const f=document.getElementById('shFlash');
+      f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+    setTimeout(step, s.t);
   })();
 }
 function showResult(conf, quality){
@@ -655,7 +719,17 @@ function showResult(conf, quality){
   const shots=(QC&&QC.shots)||1;
   const pct=a=>Math.round(a.coverage*100)+'%';
   const regs=last&&last.regions?Object.keys(last.regions).join(' · '):'팁 · 루트 · 엣지';
-  document.getElementById('rres').innerHTML=
+  // 촬영을 몇 번 했는지 '보이게' — 숫자만 쓰면 로봇이 다시 찍은 게 안 와닿는다
+  const strip = (at.length>1 && SHOTIMG) ? '<div class="shots">'+at.map(a=>{
+      const ok=(a.result==='PASS'), p=Math.round(a.coverage*100);
+      return '<div class="shot '+(ok?'pass':'fail')+'">'+
+        '<span class="tag">'+(ok?'✓ 합격':'✗ 미달')+'</span>'+
+        '<img src="'+SHOTIMG+'">'+
+        (ok?'':'<div class="cut" style="width:'+Math.max(8,100-p)+'%"></div>')+
+        '<div class="cap"><span class="n">'+a.n+'차</span>'+
+        '<span class="pc">담김 '+p+'%</span></div></div>';
+    }).join('')+'</div>' : '';
+  document.getElementById('rres').innerHTML= strip +
     '<div class="rcards">'+
       '<div class="rc"><div class="rk">📷 촬영</div><div class="rv">'+shots+'회</div>'+
         '<div class="rs">'+(last?'사진에 담김 '+pct(last):'-')+'</div></div>'+
