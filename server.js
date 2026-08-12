@@ -826,6 +826,17 @@ function scanDefectImages(){
     return map;
   }catch(e){ return {}; }   // 폴더 없으면 빈 맵 → 프론트가 스키매틱으로 대체
 }
+// 작업에 붙일 결함 사진 — 폴더를 스캔해 결함 종류에 맞는 것 중 작업 ID로 하나 고정.
+//   서버가 고르므로 정비사 화면과 관리자 화면이 같은 사진을 본다.
+const DEFECT_KEY = {'부식':'corrosion','균열':'crack','찍힘':'dent','마모':'wear',
+                    '손상':'damage','천공':'puncture','긁힘':'scratch'};
+function pickDefectImage(w){
+  if(!w || w.defect==='이상없음') return null;
+  const pool = (scanDefectImages()[DEFECT_KEY[w.defect]]) || [];
+  if(!pool.length) return null;
+  return pool[_seed(w.id) % pool.length];
+}
+
 // 케이스의 담당 정비사 유추 — 저장된 owner 우선, 없으면 case id(V-W-{n}xx)에서
 function caseTech(v){
   let name = (v.owner || v.by || '');
@@ -1177,7 +1188,7 @@ const server = http.createServer(async (req,res)=>{
     // 촬영 시점이 곧 품질 판정 시점이다 -> 정비사 화면도 같은 판단 내용을 받는다
     //   (관리자만 보고 정비사는 못 보면, 그 사진으로 판정할 사람이 근거를 모른 채 판정하게 된다)
     if(w) qcRun(w);
-    const out = { assess: assess(w), qc: w? w.qc : null };
+    const out = { assess: assess(w), qc: w? w.qc : null, image: pickDefectImage(w) };
     try{
       out.scene = (await cypher(Q_ROBOT, {}))[0] || null;
       out.part  = (await cypher(Q_PART, {part:'BLADE'}))[0] || null;

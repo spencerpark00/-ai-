@@ -621,9 +621,14 @@ function openRobot(by){
   // 작업 ID를 넘겨 그 작업 고유의 신뢰도.품질을 받는다 (같은 작업 = 항상 같은 값)
   fetch('/api/robot?work='+encodeURIComponent((CURWORK&&CURWORK.id)||'')).then(r=>r.json()).then(j=>{
     const sc=j.scene||{}; ASSESS=j.assess||null; QC=j.qc||null;
+    // 결함 종류에 맞는 실사진으로 교체 (서버가 작업 ID로 고정 -> 관리자 화면과 같은 사진)
+    if(j.image){ const im=document.querySelector('.cam img'); if(im) im.src=j.image; }
+    const bl=document.querySelector('.cam .lbl');
+    if(bl) bl.innerHTML='<span class="rc"></span>CAM-01 · '+((CURWORK&&CURWORK.area)||'HPC 블레이드');
     const conf=ASSESS?ASSESS.conf:(sc.candConf!=null?sc.candConf:0.87);
     const quality=ASSESS?ASSESS.quality:(sc.quality!=null?sc.quality:0.92);
-    document.getElementById('bbt').textContent='CORROSION '+conf;
+    const DEFEN={'부식':'CORROSION','균열':'CRACK','찍힘':'DENT','마모':'WEAR','손상':'DAMAGE','이상없음':'NO DEFECT'};
+    document.getElementById('bbt').textContent=(DEFEN[(CURWORK&&CURWORK.defect)]||'DEFECT')+' '+conf;
     runPipeline(conf, quality);
   }).catch(()=>{setTimeout(()=>{document.getElementById('mBody').innerHTML='<button class="btn main" onclick="captured(0.87)">AI 결과 보기 →</button>';},1200);});
 }
