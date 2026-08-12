@@ -285,7 +285,7 @@
 <div class="modal" id="modal"><div class="msheet">
   <div class="sh">🤖 로봇 촬영 <span style="font-size:11px;color:var(--dim);font-weight:400" id="mLoc"></span><span class="x" onclick="closeModal()">✕</span></div>
   <!-- 시뮬 연동: assets/sim.mp4 를 넣으면 로봇 촬영 화면이 자동으로 영상 재생 (없으면 정지 이미지 폴백). 규격: 풀HD·1배속·H.264 -->
-  <div class="cam"><div class="lbl"><span class="rc"></span>CAM-01 · HPC 블레이드</div><img src="assets/corrosion_al.jpg" alt="검사"><video id="simVid" muted playsinline loop preload="none" style="display:none"></video><span class="simtag" id="simTag" style="display:none">PyBullet 시뮬</span><div class="ov"></div><div class="scan"></div><div class="bb"><span class="bbt" id="bbt">CORROSION</span></div></div>
+  <div class="cam"><div class="lbl"><span class="rc"></span>CAM-01 · HPC 블레이드</div><img id="camImg" alt="검사" style="background:#0b1119"><video id="simVid" muted playsinline loop preload="none" style="display:none"></video><span class="simtag" id="simTag" style="display:none">PyBullet 시뮬</span><div class="ov"></div><div class="scan"></div><div class="bb"><span class="bbt" id="bbt">CORROSION</span></div></div>
   <div class="mbody" id="mBody"></div>
 </div></div>
 

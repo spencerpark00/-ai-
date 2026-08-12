@@ -829,9 +829,10 @@ function scanDefectImages(){
 // 작업에 붙일 결함 사진 — 폴더를 스캔해 결함 종류에 맞는 것 중 작업 ID로 하나 고정.
 //   서버가 고르므로 정비사 화면과 관리자 화면이 같은 사진을 본다.
 const DEFECT_KEY = {'부식':'corrosion','균열':'crack','찍힘':'dent','마모':'wear',
-                    '손상':'damage','천공':'puncture','긁힘':'scratch'};
+                    '손상':'damage','천공':'puncture','긁힘':'scratch',
+                    '이상없음':'normal'};   // 결함 없는 블레이드 사진
 function pickDefectImage(w){
-  if(!w || w.defect==='이상없음') return null;
+  if(!w) return null;
   const pool = (scanDefectImages()[DEFECT_KEY[w.defect]]) || [];
   if(!pool.length) return null;
   return pool[_seed(w.id) % pool.length];

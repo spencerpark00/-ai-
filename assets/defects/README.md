@@ -29,33 +29,43 @@
 
 ## 출처 · 라이선스 (Attribution) — **CC BY 4.0, 출처 표기 필수**
 
-| 파일 | 원본에 표기된 결함 | 검사 부위 |
-| --- | --- | --- |
-| `crack-1` | crack 0.40 / 0.87 | LPT 노즐 |
-| `dent-1` | dent 0.25 / 0.86 | HPC 3단 |
-| `dent-2` | dent 0.78 | 블레이드 리딩엣지 |
-| `corrosion-1` | **erosion 0.93** | HPT 노즐 |
-| `damage-1` | **TBC missing** | HPT 블레이드 |
+| 파일 | 원본 라벨 | 부위 | 출처 |
+| --- | --- | --- | --- |
+| `crack-1` | crack | LPT 노즐 | Sci Rep 12:13067 Fig.14 |
+| `dent-1` | dent | HPC 3단 | 〃 |
+| `dent-2` | dent | 리딩엣지 | 〃 |
+| `corrosion-1` | **erosion** | HPT 노즐 | 〃 |
+| `damage-1` | **TBC missing** | HPT 블레이드 | 〃 |
+| `normal-1` | 결함 없음 | 탈거 블레이드 | AeBAD `good` |
 
-**출처** — Li et al., *Deep learning-based defects detection of certain aero-engine
-blades and vanes with DDSC-YOLOv5s*, **Scientific Reports 12, 13067 (2022)**, Figure 14.
+**보어스코프 5장** — Li et al., *Deep learning-based defects detection of certain aero-engine
+blades and vanes with DDSC-YOLOv5s*, Scientific Reports 12, 13067 (2022), Figure 14.
 https://doi.org/10.1038/s41598-022-17340-7 · **CC BY 4.0**
 
-> 발표·제안 자료에 위 출처를 반드시 표기하세요.
+**정상 블레이드 1장** — Zhang et al., **AeBAD** (Aero-engine Blade Anomaly Detection).
+https://github.com/zhangzilongc/MMR · **CC BY 4.0**
 
-## 표기 주의 (시연 중 질문 대비)
+> 발표·제안 자료에 위 두 출처를 반드시 표기하세요.
 
-- **실제 보어스코프 검사 사진**입니다. 원본의 탐지 박스가 그대로 남아 있습니다
-  (해당 논문 모델의 탐지 결과이며, 우리 시스템의 출력이 아닙니다).
-- `corrosion-1` 은 원본 라벨이 **erosion(침식)**, `damage-1` 은 **TBC missing(코팅 손실)** 입니다.
-  공개 문헌에 항공엔진 블레이드 **부식** 사진이 사실상 없어, 표면 재료 손실로 가장 가까운 것을
+## 가공 내역 (CC BY 는 변경 사항 표시 의무)
+
+- 원본의 **탐지 박스·라벨을 제거**했습니다 (해당 논문 모델의 출력이지 우리 시스템 결과가 아니므로).
+  색 규칙으로 검출해 주변 픽셀로 메웠습니다. `corrosion-1` 은 박스 색이 배경과 가까워
+  **희미한 사각 윤곽이 남아 있습니다**.
+- 800×450 으로 크기를 맞췄습니다. `normal-1` 은 세로 원본을 눕혔습니다
+  (분해한 블레이드를 스탠드에 눕혀 촬영하는 PoC 시나리오와 맞추기 위함).
+
+## 표기 주의 (시연 질문 대비)
+
+- `corrosion-1` 원본 라벨은 **erosion(침식)**, `damage-1` 은 **TBC missing(코팅 손실)** 입니다.
+  공개 문헌에 항공엔진 블레이드 **부식** 사진이 사실상 없어 표면 재료 손실로 가장 가까운 것을
   배정했습니다. 물어보면 그대로 답하면 됩니다.
-- 사진이 없는 결함(마모·긁힘 등)은 자동으로 **스키매틱 도형**으로 대체됩니다.
+- 사진이 없는 결함(마모·긁힘)은 **스키매틱 도형**으로 대체됩니다.
 
 ## 검토했으나 쓰지 않은 것
 
-- **AeBAD** (github.com/zhangzilongc/MMR, CC BY 4.0) — 실물 블레이드 5,570장.
-  ground_truth 마스크로 결함만 정확히 잘라내 봤으나, 결함이 도색된 시편 위의 미세한 형상이라
-  **화면에서 균열·부식으로 읽히지 않았습니다.** 이상탐지 학습용이지 사람에게 보여주는 사진이 아닙니다.
-- **BladeSynth** (figshare, CC BY) — 합성 렌더링 25.7GB. 실사진 아님.
-- 풍력 발전 블레이드 데이터셋 다수 — 재질·크기가 달라 항공엔진 제안에 부적합.
+- **AeBAD** 결함 이미지 — ground_truth 마스크로 결함만 잘라내 봤으나, 도색된 시편의 미세 형상이라
+  화면에서 균열·부식으로 읽히지 않았습니다. 이상탐지 학습용이지 사람에게 보여주는 사진이 아닙니다.
+  (정상 블레이드 `normal-1` 만 채택 — 결함을 읽을 필요가 없으므로)
+- **BladeSynth** (figshare, CC BY) — 합성 렌더링 25.7GB.
+- 풍력 발전 블레이드 데이터셋 — 재질·크기가 달라 항공엔진 제안에 부적합.
