@@ -29,27 +29,33 @@
 
 ## 출처 · 라이선스 (Attribution) — **CC BY 4.0, 출처 표기 필수**
 
-| 유형 | 파일 | 출처 |
+| 파일 | 원본에 표기된 결함 | 검사 부위 |
 | --- | --- | --- |
-| 부식·마모 | `corrosion-1~3`, `wear-1~3` | **AeBAD** `ablation` |
-| 균열 | `crack-1~3` | **AeBAD** `fracture` |
-| 손상 | `damage-1~3` | **AeBAD** `breakdown` |
-| 긁힘 | `scratch-1~3` | **AeBAD** `groove` |
-| 찍힘 | `dent-1~2` | Zhang et al., *Sci Rep* 12:13067 (2022) Fig.14 보어스코프 |
+| `crack-1` | crack 0.40 / 0.87 | LPT 노즐 |
+| `dent-1` | dent 0.25 / 0.86 | HPC 3단 |
+| `dent-2` | dent 0.78 | 블레이드 리딩엣지 |
+| `corrosion-1` | **erosion 0.93** | HPT 노즐 |
+| `damage-1` | **TBC missing** | HPT 블레이드 |
 
-**AeBAD** (Aero-engine Blade Anomaly Detection) — Zhang et al.,
-*Industrial anomaly detection with domain shift: A real-world dataset and masked
-multi-scale reconstruction*. https://github.com/zhangzilongc/MMR · **CC BY 4.0**
-
-**보어스코프 이미지** — Li et al., *Deep learning-based defects detection of certain
-aero-engine blades and vanes with DDSC-YOLOv5s*, Scientific Reports 12, 13067 (2022).
+**출처** — Li et al., *Deep learning-based defects detection of certain aero-engine
+blades and vanes with DDSC-YOLOv5s*, **Scientific Reports 12, 13067 (2022)**, Figure 14.
 https://doi.org/10.1038/s41598-022-17340-7 · **CC BY 4.0**
 
-> 발표·제안 자료에 위 두 출처를 반드시 표기하세요.
+> 발표·제안 자료에 위 출처를 반드시 표기하세요.
 
-## 표기 주의
-- 사진은 **세로로 긴 원본을 눕혀** 16:9(996×560)로 맞췄습니다.
-  PoC 시나리오(분해한 블레이드를 스탠드에 눕히고 로봇이 위에서 촬영)와 그림을 맞추기 위함입니다.
-- `corrosion-*` 은 AeBAD 의 **ablation(소착·삭마)** 이미지입니다. 엄밀히는 부식과 다른 결함이지만,
-  표면 재료 손실이라는 점에서 가장 가까워 부식 항목에 배정했습니다.
-  시연에서 정비사가 물으면 "공개 데이터셋 제약으로 표면 손상 이미지를 대체 사용했다"고 답하면 됩니다.
+## 표기 주의 (시연 중 질문 대비)
+
+- **실제 보어스코프 검사 사진**입니다. 원본의 탐지 박스가 그대로 남아 있습니다
+  (해당 논문 모델의 탐지 결과이며, 우리 시스템의 출력이 아닙니다).
+- `corrosion-1` 은 원본 라벨이 **erosion(침식)**, `damage-1` 은 **TBC missing(코팅 손실)** 입니다.
+  공개 문헌에 항공엔진 블레이드 **부식** 사진이 사실상 없어, 표면 재료 손실로 가장 가까운 것을
+  배정했습니다. 물어보면 그대로 답하면 됩니다.
+- 사진이 없는 결함(마모·긁힘 등)은 자동으로 **스키매틱 도형**으로 대체됩니다.
+
+## 검토했으나 쓰지 않은 것
+
+- **AeBAD** (github.com/zhangzilongc/MMR, CC BY 4.0) — 실물 블레이드 5,570장.
+  ground_truth 마스크로 결함만 정확히 잘라내 봤으나, 결함이 도색된 시편 위의 미세한 형상이라
+  **화면에서 균열·부식으로 읽히지 않았습니다.** 이상탐지 학습용이지 사람에게 보여주는 사진이 아닙니다.
+- **BladeSynth** (figshare, CC BY) — 합성 렌더링 25.7GB. 실사진 아님.
+- 풍력 발전 블레이드 데이터셋 다수 — 재질·크기가 달라 항공엔진 제안에 부적합.
