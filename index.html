@@ -149,16 +149,22 @@
   /* ── 교범 절차 패널 ──
      안전 항목을 절차보다 위에 두고, 단계는 번호 붙은 세로 목록으로.
      알약(chip)을 줄줄이 붙이면 눈으로 훑을 수가 없다. */
-  .pw{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:11px 12px;margin-bottom:8px;
-      font-size:13px;line-height:1.6;border:1px solid transparent}
-  .pw .pi{font-size:15px;line-height:1.3;flex:none}
-  .pw .pt{font-size:10.5px;font-weight:800;letter-spacing:.6px;display:block;margin-bottom:2px}
+  /* 안전 항목: 항목마다 카드를 만들면 세로로 한없이 길어진다.
+     등급별로 한 칸에 묶고, 각 줄은 짧게. 원문은 눌러서 편다. */
+  .pw{border-radius:10px;padding:10px 12px;margin-bottom:8px;border:1px solid transparent;cursor:pointer}
+  .pw .ph2{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.5px}
+  .pw .ph2 .pc{margin-left:auto;font-size:10.5px;font-weight:600;opacity:.75}
+  .pw ul{list-style:none;margin-top:7px;display:flex;flex-direction:column;gap:5px}
+  .pw li{position:relative;padding-left:12px;font-size:12.5px;line-height:1.5;
+      overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+  .pw li:before{content:'';position:absolute;left:2px;top:8px;width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.65}
+  .pw.open li{-webkit-line-clamp:unset;display:block}
   .pw.danger{background:rgba(248,113,113,.09);border-color:rgba(248,113,113,.35);color:#ffd9d9}
-  .pw.danger .pt{color:var(--dang)}
+  .pw.danger .ph2{color:var(--dang)}
   .pw.caution{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.3);color:#f5e6c0}
-  .pw.caution .pt{color:var(--warn)}
+  .pw.caution .ph2{color:var(--warn)}
   .pw.note{background:rgba(34,211,238,.06);border-color:rgba(34,211,238,.22);color:#cfe9f2}
-  .pw.note .pt{color:var(--acc)}
+  .pw.note .ph2{color:var(--acc)}
   .proc{background:#0e1622;border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px}
   .proc>.ph{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:700;color:var(--txt);
       padding-bottom:9px;margin-bottom:10px;border-bottom:1px solid var(--line)}
@@ -510,21 +516,41 @@ async function loadDrill(){
 //   교범 원문의 경고 등급 표기가 제각각이라(WARNING/경고/CAUTION/주의/NOTE) 3단계로 정규화한다.
 function warnKind(t){
   const s=String(t||'').toUpperCase();
-  if(s.includes('WARN')||s.includes('경고')||s.includes('DANGER')) return ['danger','⛔','경고'];
-  if(s.includes('CAUT')||s.includes('주의')) return ['caution','⚠️','주의'];
-  return ['note','ℹ️','참고'];
+  if(s.includes('WARN')||s.includes('경고')||s.includes('DANGER')) return 0;
+  if(s.includes('CAUT')||s.includes('주의')) return 1;
+  return 2;
 }
+// 교범 원문은 문장이 길다. 현장에서 훑을 수 있게 군더더기만 걷어낸다.
+//   의미를 바꾸지 않는 범위에서만 줄이고, 원문은 칸을 눌러 펼 수 있게 둔다.
+function shortWarn(t){
+  let x=String(t||'').trim().replace(/\s+/g,' ').replace(/\.$/,'');
+  x = x.replace(/^(검사·수리 작업 시|작업 시|취급 시|사용 시)\s*/,'');
+  x = x.replace(/([가-힣A-Za-z]+)(?:을|를)\s*착용하고\s*충분히\s*환기한다/,'$1 착용 · 환기');
+  x = x.replace(/([가-힣A-Za-z]+)(?:을|를)\s*착용한다/,'$1 착용');
+  x = x.replace(/([가-힣A-Za-z]+)(?:을|를)\s*분리하지\s*않는다/,'$1 분리 금지');
+  x = x.replace(/([가-힣A-Za-z]+)(?:을|를)\s*확인한다/,'$1 확인');
+  x = x.replace(/않도록\s*한다/,'않도록 주의');
+  x = x.replace(/해서는\s*안\s*된다/,' 금지');
+  x = x.replace(/하지\s*않는다/,' 금지');
+  x = x.replace(/한다$/,'');
+  return x.trim();
+}
+
 function renderProcs(procs){
-  // 안전 항목은 절차별로 흩어놓지 않고 맨 위에 모은다 (중복 제거)
-  const seen=new Set(), warns=[];
+  // 안전 항목을 등급별로 한 칸에 모은다 (절차별로 흩지 않고, 중복 제거)
+  const G=[[],[],[]], seen=new Set();
   procs.forEach(p=>(p.warnings||[]).forEach(w=>{
     const tx=(w.text||'').trim(); if(!tx||seen.has(tx)) return; seen.add(tx);
-    warns.push([warnKind(w.type), tx]);
+    G[warnKind(w.type)].push(tx);
   }));
-  warns.sort((a,b)=>(a[0][0]==='danger'?0:1)-(b[0][0]==='danger'?0:1));
-  // 안전 항목은 개수를 자르지 않는다 (중복만 제거) - 정비 현장에서 경고를 숨기면 안 된다
-  const wHtml = warns.map(([k,tx])=>
-    '<div class="pw '+k[0]+'"><span class="pi">'+k[1]+'</span><span><span class="pt">'+k[2]+'</span>'+tx+'</span></div>').join('');
+  const META=[['danger','⛔','경고'],['caution','⚠️','주의'],['note','ℹ️','참고']];
+  const wHtml = G.map((items,i)=>{
+    if(!items.length) return '';
+    const [cls,ic,ko]=META[i];
+    return '<div class="pw '+cls+'" data-w="1">'+
+      '<div class="ph2">'+ic+' '+ko+' '+items.length+'건<span class="pc">원문 보기</span></div>'+
+      '<ul>'+items.map(t=>'<li title="'+t.replace(/"/g,'&quot;')+'">'+shortWarn(t)+'</li>').join('')+'</ul></div>';
+  }).join('');
   const pHtml = procs.map((p,pi)=>{
     const steps=(p.steps||[]).map((st,i)=>'<li><span class="sn">'+(i+1)+'</span><span>'+st+'</span></li>').join('');
     const tools=(p.tools||[]).filter(Boolean);
@@ -537,6 +563,11 @@ function renderProcs(procs){
   }).join('');
   return wHtml + pHtml;
 }
+// 안전 항목 칸을 누르면 원문 전체를 편다 (인라인 onclick 대신 위임)
+document.addEventListener('click', function(e){
+  const b = e.target.closest && e.target.closest('.pw[data-w]');
+  if(b) b.classList.toggle('open');
+});
 function toggle(btn,id){btn.classList.toggle('open');document.getElementById(id).classList.toggle('show');}
 
 // ── 로봇/직접 촬영 ──
