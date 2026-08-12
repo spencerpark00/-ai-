@@ -93,6 +93,9 @@
   .sugc{border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-top:9px;background:#fafcff;cursor:pointer;transition:.12s}
   .sugc:hover{border-color:#9fb2cc;background:#f5f9ff}
   tr.wor{cursor:pointer}
+  .qrow:hover{background:#f4f8fd}
+  .tl.tlw{cursor:pointer;border-radius:6px}
+  .tl.tlw:hover{background:#f4f8fd}
   tr.wor:hover{background:#f4f8fd}
 </style></head>
 <body>
@@ -308,14 +311,14 @@ function viewOps(){
     <td style="width:86px"><span class="badge ${chip(p.status)}">${p.status}</span></td>
     <td style="width:50px;text-align:right;color:var(--dim)" class="mono">${p.elapsed}</td></tr>`).join('');
   const queue=S.works.filter(x=>x.state==='AWAITING_APPROVAL');
-  const qhtml=queue.length?queue.map(x=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line2)">
-    <span class="mono" style="color:var(--acc);font-size:11px;width:118px;cursor:pointer" onclick="openWO('${x.id}')">${x.id}</span>
+  const qhtml=queue.length?queue.map(x=>`<div class="qrow" onclick="openWO('${x.id}')" title="클릭 — 이 Work Order 전체 추적" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line2);cursor:pointer">
+    <span class="mono" style="color:var(--acc);font-size:11px;width:118px">${x.id}</span>
     <div style="flex:1;font-size:12px;color:#41506b">${x.part} ${x.defect} — 수리 판정 승인 요청</div>
     <div style="font-size:11px;color:var(--dim)">${x.owner||x.tech||''}</div>
-    <button onclick="approveWO('${x.id}')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:7px;border:1px solid var(--green);background:var(--greenbg);color:var(--green);cursor:pointer">승인</button></div>`).join('')
+    <button onclick="event.stopPropagation();approveWO('${x.id}')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:7px;border:1px solid var(--green);background:var(--greenbg);color:var(--green);cursor:pointer">승인</button></div>`).join('')
     :'<div style="padding:22px 16px;text-align:center;color:var(--dim2);font-size:12px">승인 대기 없음</div>';
   const fleet=(d.fleet||[]).map(f=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:7px;background:#f7f9fc;font-size:11px;color:#41506b"><div style="width:7px;height:7px;border-radius:50%;background:${f.dot}"></div>${f.label} <b class="mono" style="margin-left:auto">${f.n}</b></div>`).join('');
-  const tl=(d.activity||[]).map(a=>`<div class="tl"><div class="tm">${fmtTime(a.at)}</div><div style="width:6px;height:6px;border-radius:50%;background:${a.kind==='ai'?'#2b5fa8':(a.verdict==='수리'?'#e05243':(a.verdict==='재검사'?'#d9a514':'#2e7d4f'))};flex:none;margin-top:5px"></div><div class="td2">${a.kind==='ai'?'🤖 ':''}${a.text}</div></div>`).join('');
+  const tl=(d.activity||[]).map(a=>`<div class="tl${/^W-/.test(a.id||'')?' tlw':''}"${/^W-/.test(a.id||'')?` onclick="openWO('${a.id}')" title="클릭 — 이 Work Order 전체 추적"`:''}><div class="tm">${fmtTime(a.at)}</div><div style="width:6px;height:6px;border-radius:50%;background:${a.kind==='ai'?'#2b5fa8':(a.verdict==='수리'?'#e05243':(a.verdict==='재검사'?'#d9a514':'#2e7d4f'))};flex:none;margin-top:5px"></div><div class="td2">${a.kind==='ai'?'🤖 ':''}${a.text}</div></div>`).join('');
   return `<div class="rowhead"><div class="h1">운영 <span>Operations · 오늘을 돌린다</span></div><div style="flex:1"></div><div style="font-size:11px;color:#8b95a5">이벤트 파생 · 4초 폴링 · 마지막 갱신 <span id="clk2"></span></div></div>
   <div class="grid4">${ct('오늘 전체','Total',t.total,'건')}${ct('완료','Done',t.done,'건 · 계획 대비',' var(--green)')}${ct('대기','Waiting',t.ongoing,'건 · 승인 포함','var(--amber)')}${ct('긴급','Urgent',t.urgent,'건','var(--red)')}</div>
   <div class="two">
@@ -323,6 +326,9 @@ function viewOps(){
       <div class="card"><div class="ch"><b>가동 보드</b><small>정비사·로봇 5쌍 · 지금 누가/무엇이 어디서 막혔나</small>
         <span onclick="toggleAuto()" title="혼자 시연용 — 미로그인 정비사 자동 진행" style="margin-left:auto;cursor:pointer;font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:14px;border:1px solid ${d.autoDemo?'#bfe3cd':'var(--line)'};background:${d.autoDemo?'var(--greenbg)':'#fff'};color:${d.autoDemo?'var(--green)':'var(--dim)'}">데모 자동재생 ${d.autoDemo?'● ON':'○ OFF'}</span></div>
         <table><thead><tr><th>정비사 · 로봇</th><th>현재 작업 Work Order</th><th>단계</th><th>상태</th><th style="text-align:right">경과</th></tr></thead><tbody>${rows}</tbody></table>
+        ${(d.pairs||[]).some(p=>p.woId)?'':`<div style="padding:9px 16px;font-size:11.5px;color:#7c5a10;background:#fdf3d8;border-top:1px solid var(--line2)">
+          지금 진행 중인 작업이 없습니다 — 정비사가 로그인해 작업을 시작하거나 <b>데모 자동재생</b>을 켜면 여기에 표시됩니다.
+          지난 작업은 아래 <b>승인 대기큐</b>나 <b>활동 이력</b>을 눌러 추적할 수 있습니다.</div>`}
         <div class="muted">상태는 작업 이벤트 파생 · 위치 추적 없음</div></div>
       <div class="card"><div class="ch"><b>승인 대기큐</b><small>지금 내가 처리할 일 (수리 판정)</small></div>${qhtml}
         <div class="muted">승인·판정은 정비사 앱에서 상신 → 이 큐에 적재됩니다</div></div>
