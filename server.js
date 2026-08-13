@@ -410,6 +410,24 @@ async function buildContext(q, wctx){
   const warns=[...new Map([].concat(...procs.map(x=>x.warnings||[])).filter(w=>w&&w.text).map(w=>[w.text,w])).values()].slice(0,4);
   if(warns.length) L.push(`[주의사항] `+warns.map((w,i)=>`${i+1})${w.text}`).join(' '));
   if(hits.length) L.push(`[현장용어] `+hits.map(h=>`'${h.term}'=${h.std}`).join(', '));
+  // 정비사가 지금 보고 있는 작업 — 화면과 챗봇이 같은 것을 보게 한다.
+  //   (이게 없으면 화면에 뜬 공구를 챗봇이 "없다"고 답한다)
+  if(wctx && (wctx.id || wctx.defect)){
+    const w = WORKS.find(x=>x.id===wctx.id);
+    L.push(`[지금 작업] ${wctx.id||''} ${w?w.ac:''} ${w?w.area:''} — ${wctx.defect||(w&&w.defect)||''} 판정 대기`);
+    if(wctx.next) L.push(`[다음 조치] ${wctx.next}`);
+    if(Array.isArray(wctx.acts) && wctx.acts.length)
+      L.push(`[조치 순서] ` + wctx.acts.map((a,i)=>`${i+1})${a}`).join(' '));
+    if(Array.isArray(wctx.tools) && wctx.tools.length)
+      L.push(`[이 작업의 필요 공구 — 정비사 화면에 표시된 확정 목록] ${wctx.tools.join(', ')}`);
+    if(w && w.qc && w.qc.attempts && w.qc.attempts.length){
+      const last = w.qc.attempts[w.qc.attempts.length-1];
+      const fa   = w.qc.attempts.find(a=>a.result==='FAIL');
+      L.push(`[로봇 촬영 실적] 이 블레이드는 로봇이 ${w.qc.shots}회 촬영했고 `
+        + `최종 사진에 담긴 비율은 ${Math.round(last.coverage*100)}% 입니다`
+        + (fa ? ` (1차 ${Math.round(fa.coverage*100)}% 불합격 — ${fa.reason} → ${fa.replan?fa.replan.detail:'자세 재계산'} 후 재촬영)` : ''));
+    }
+  }
   return { part, context:L.join('\n') };
 }
 
