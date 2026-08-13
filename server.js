@@ -286,8 +286,22 @@ const SYS_PROMPT = `당신은 'MRO Copilot', 항공정비 현장에서 정비사
 - 이건 하나로 이어지는 대화입니다. 앞선 대화를 기억하고 맥락을 이어받아 답하세요. "그건", "아까 그거", "그럼?" 같은 말도 이전 흐름으로 이해하세요. 같은 말을 반복하지 말고 이어서 대답하세요.
 - 핵심부터 말하고 너무 길지 않게. 보통 2~4문장, 절차 설명은 조금 더 길어도 됩니다.
 
+[무엇을 어떻게 답할지 — 질문을 세 종류로 나눠 판단하세요]
+
+① 이 작업·이 부품에 대한 질문 (검사 절차, 결함 이력, 과거 사례, 주의사항, 지금 필요한 공구)
+   → 아래 [근거]에 있는 내용으로만 답하세요. 근거에 없으면 "그건 제 자료엔 없어요"라고 말하고
+     대신 무엇을 알려줄 수 있는지 제안하세요.
+
+② 정비 일반 상식 (공구가 무엇인지, 용어의 뜻, 장비의 용도, 결함 유형의 일반적 성격)
+   → 근거에 없더라도 아는 대로 설명하세요. 이건 지어내는 것이 아니라 상식입니다.
+     예: "토크 렌치가 뭐야?" → 규정 토크로 조이는 공구라고 설명.
+     설명 끝에 이 작업의 근거와 연결해 주고, 규격·수치가 걸린 부분은
+     "정확한 값은 해당 엔진 정비교범(EM/AMM)을 보셔야 합니다"라고 덧붙이세요.
+
+③ 허용한도·수치·합격 기준 (균열 길이 몇 mm까지 허용인지 등)
+   → 값을 말하지 마세요. 교범 소관입니다. "교범(EM/AMM) 기준을 확인하셔야 합니다"라고 안내하세요.
+
 [지켜야 할 것]
-- 아래 [근거]를 바탕으로 답하되, 근거에 없으면 지어내지 말고 "그건 제 자료엔 없어요"라고 솔직히 말한 뒤 아는 범위만 답하세요.
 - 최종 결함 판정은 정비사가 합니다. 당신은 판정하지 않고 정보만 제공하세요.
 - 현장용어(메가네·야마·복스 등)로 물어도 이해하고, 필요하면 표준용어를 함께 알려주세요.
 - 이름을 물으면 'MRO Copilot'이라고 답하고, 무엇을 할 수 있냐고 물으면: 부품 결함 이력·검사 절차·필요 공구·주의사항·과거 사례 안내, 로봇 촬영 결과 정리, 작업기록 초안 도움 을 한다고 답하세요.`;
@@ -369,7 +383,7 @@ function llmComplete(system, turns){
 }
 
 // RAG: 질문에서 부품·현장어를 뽑아 Neo4j·교범 근거를 텍스트로 조립
-async function buildContext(q){
+async function buildContext(q, wctx){
   const hits = slangHits(q);
   // Neo4j 죽어있어도 LLM은 호출되게 — 각 조회를 개별 try/catch로 감쌈
   let part='BLADE', data=null, procs=[];
@@ -395,8 +409,8 @@ async function buildContext(q){
 }
 
 // LLM 경로: 근거 조립 → Gemini → 답변 + 이어가기 칩
-async function answerLLM(q, history){
-  const ctx = await buildContext(q);
+async function answerLLM(q, history, wctx){
+  const ctx = await buildContext(q, wctx);
   const userMsg = `[근거]\n${ctx.context || '(관련 근거 없음)'}\n\n[질문]\n${q}`;
   // 최근 대화(최대 6턴)를 앞에 붙여 맥락 유지
   const turns = [];
@@ -1028,9 +1042,9 @@ const server = http.createServer(async (req,res)=>{
   // ============================================================
   if(u.pathname === '/api/ask'){
     // GET(?q=) 또는 POST({q, history:[{role,text}]}) 둘 다 지원
-    let q='', history=[];
+    let q='', history=[], wctx=null;
     if(req.method === 'POST'){
-      try{ const p = JSON.parse(await readBody(req) || '{}'); q = p.q || ''; history = p.history || []; }catch(e){}
+      try{ const p = JSON.parse(await readBody(req) || '{}'); q = p.q || ''; history = p.history || []; wctx = p.ctx || null; }catch(e){}
     } else {
       q = u.searchParams.get('q') || '';
     }
@@ -1038,7 +1052,7 @@ const server = http.createServer(async (req,res)=>{
       // LLM 켜져 있으면 RAG+LLM 우선. 실패하면 아래 규칙 기반으로 자동 fallback.
       if(LLM_ON){
         try{
-          const out = await answerLLM(q, history);
+          const out = await answerLLM(q, history, wctx);
           return json(res, {q, part:out.part, mode:'llm', answer:out.answer});
         }catch(e){ console.log('  ! LLM fallback('+e.message+') → 규칙 기반'); }
       }

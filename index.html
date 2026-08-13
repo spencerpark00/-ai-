@@ -806,8 +806,16 @@ async function askServer(term){
     '<div class="botmsg" id="pending"><span class="spin"></span> 확인 중…</div>';
   body.scrollTop=body.scrollHeight;
   try{
+    // 지금 보고 있는 작업을 같이 보낸다 — 화면에 뜬 공구.조치를 챗봇도 알아야 한다
+    const _c = (FINDING && FINDING.cond) ? (DEFINFO[FINDING.cond]||null) : null;
+    const askCtx = CURWORK ? {
+      id: CURWORK.id, defect: CURWORK.defect,
+      next: _c ? _c.next : null,
+      acts: _c ? _c.acts : null,
+      tools: _c ? (_c.tools||[]).map(t=>t[0]) : null
+    } : null;
     const r=await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({q:term, history:chatHist})});
+      body:JSON.stringify({q:term, history:chatHist, ctx:askCtx})});
     const j=await r.json(); const ans=j.answer||{};
     lastPart=j.part||lastPart;
     document.getElementById('pending').outerHTML=renderBot(ans);
