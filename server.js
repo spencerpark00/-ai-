@@ -301,6 +301,11 @@ const SYS_PROMPT = `당신은 'MRO Copilot', 항공정비 현장에서 정비사
 ③ 허용한도·수치·합격 기준 (균열 길이 몇 mm까지 허용인지 등)
    → 값을 말하지 마세요. 교범 소관입니다. "교범(EM/AMM) 기준을 확인하셔야 합니다"라고 안내하세요.
 
+[근거가 서로 다를 때]
+- 같은 항목(공구, 촬영 횟수 등)이 여러 근거에 나오면 '[이 작업의 …]' 또는 '[로봇 촬영 실적]' 처럼
+  지금 작업에 대한 근거를 먼저 믿으세요. '[교범 절차의 참고 공구]'는 일반 절차이지 이 작업의 확정 목록이 아닙니다.
+- '요구컷 3장'은 한 번 촬영할 때 찍는 장수이지, 로봇이 몇 번 촬영했는지가 아닙니다. 둘을 섞지 마세요.
+
 [지켜야 할 것]
 - 최종 결함 판정은 정비사가 합니다. 당신은 판정하지 않고 정보만 제공하세요.
 - 현장용어(메가네·야마·복스 등)로 물어도 이해하고, 필요하면 표준용어를 함께 알려주세요.
@@ -401,7 +406,7 @@ async function buildContext(q, wctx){
   const p=procs[0];
   if(p && (p.steps||[]).length) L.push(`[검사 절차] ${p.procedure}: `+p.steps.map((s,i)=>`${i+1})${s}`).join(' '));
   const tools=[...new Set([].concat(...procs.map(x=>x.tools||[])))];
-  if(tools.length) L.push(`[필요 공구] ${tools.join(', ')}`);
+  if(tools.length) L.push(`[교범 절차의 참고 공구] ${tools.join(', ')}`);
   const warns=[...new Map([].concat(...procs.map(x=>x.warnings||[])).filter(w=>w&&w.text).map(w=>[w.text,w])).values()].slice(0,4);
   if(warns.length) L.push(`[주의사항] `+warns.map((w,i)=>`${i+1})${w.text}`).join(' '));
   if(hits.length) L.push(`[현장용어] `+hits.map(h=>`'${h.term}'=${h.std}`).join(', '));
