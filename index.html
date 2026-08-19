@@ -259,8 +259,6 @@
   .sheetask{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--panel);border-top:1px solid var(--line)}
   .qbub{background:var(--acc);color:#04222b;padding:8px 13px;border-radius:12px 12px 4px 12px;font-size:13px;font-weight:600;margin:0 0 10px auto;display:block;width:fit-content;max-width:80%}
   .botmsg{background:var(--panel2);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:11px 14px;font-size:13.5px;line-height:1.65;margin-bottom:14px;max-width:88%;white-space:normal}
-  .botwarn{display:inline-block;margin-bottom:7px;padding:3px 8px;border-radius:6px;font-size:11.5px;
-           color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);cursor:help}
   .rchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .rchip{font-size:11.5px;background:#0b1119;border:1px solid var(--line2);border-radius:16px;padding:5px 12px;color:var(--acc);cursor:pointer}
   .rchip:hover{background:rgba(34,211,238,.1);border-color:var(--acc)}
@@ -820,21 +818,17 @@ async function askServer(term){
       body:JSON.stringify({q:term, history:chatHist, ctx:askCtx})});
     const j=await r.json(); const ans=j.answer||{};
     lastPart=j.part||lastPart;
-    document.getElementById('pending').outerHTML=renderBot(ans, j.llmError);
+    document.getElementById('pending').outerHTML=renderBot(ans);
     chatHist.push({role:'user',text:term}); chatHist.push({role:'bot',text:ans.text||''});
     if(chatHist.length>12) chatHist=chatHist.slice(-12);   // 최근 6턴만 유지
   }catch(e){ document.getElementById('pending').outerHTML='<div class="botmsg">조회 실패</div>'; }
   body.scrollTop=body.scrollHeight;
 }
-function renderBot(a, llmError){
+function renderBot(a){
   if(!a) return '<div class="botmsg">답변을 만들지 못했어요.</div>';
   const text=(a.text||'').replace(/\n/g,'<br>');
   const chips=(a.chips||[]).map(c=>'<span class="rchip" onclick="askServer(\''+c+' '+lastPart+'\')">'+c+'</span>').join('');
-  // AI 응답이 실패해 규칙 기반으로 대체됐으면 숨기지 않고 알린다 (사유는 title 로)
-  const warn = llmError
-    ? '<div class="botwarn" title="'+String(llmError).replace(/"/g,'&quot;')+'">AI 응답 실패 — 기본 안내로 대체했어요</div>'
-    : '';
-  return '<div class="botmsg">'+warn+text+(chips?'<div class="rchips">'+chips+'</div>':'')+'</div>';
+  return '<div class="botmsg">'+text+(chips?'<div class="rchips">'+chips+'</div>':'')+'</div>';
 }
 function closeSheet(){const b=document.getElementById('sheetBody');b.innerHTML='';b.removeAttribute('data-init');chatHist=[];document.getElementById('sheet').classList.remove('show');}
 // 정비사로 로그인하지 않고 직접 접근하면 로그인 창으로 되돌림
