@@ -355,18 +355,19 @@ function geminiCall(model, system, turns){
 
 // 모델 체인을 순서대로 시도 — 하나가 할당량·빈 응답으로 막혀도 다음 모델이 답한다.
 async function geminiComplete(system, turns){
-  let last = null;
+  const fails = [];
   for(const model of GEMINI_CHAIN){
     try{
       const text = await geminiCall(model, system, turns);
       if(model !== GEMINI_CHAIN[0]) console.log('  · LLM 대체모델 사용: '+model);
       return text;
     }catch(e){
-      last = e;
+      // 마지막 모델의 사유만 남기면 앞 모델이 왜 막혔는지 알 수 없다 — 전부 모아서 올린다.
+      fails.push(model+': '+e.message);
       console.log('  ! '+model+' 실패('+e.message+')');
     }
   }
-  throw new Error((last && last.message) || 'LLM 실패');
+  throw new Error(fails.join(' | ') || 'LLM 실패');
 }
 
 // Claude (Anthropic Messages API) 호출 (Node 내장 https만)
