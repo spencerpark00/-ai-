@@ -42,6 +42,12 @@ const ROOT   = __dirname;
 //   → 팀에서 provider를 바꿔도 환경변수만 갈면 되고 코드는 그대로.
 const GEMINI_KEY     = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL   = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+// 한 모델이 할당량에 걸려도 답이 나가게 — 순서대로 넘어가며 시도한다.
+//   'latest' 별칭은 최신 모델을 가리켜 무료 한도가 빡빡하다. 막히면 안정판으로 내려간다.
+const GEMINI_CHAIN   = (process.env.GEMINI_MODELS
+  || [GEMINI_MODEL, 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'].join(','))
+  .split(',').map(s=>s.trim()).filter(Boolean)
+  .filter((m,i,a)=>a.indexOf(m)===i);
 const ANTHROPIC_KEY  = process.env.ANTHROPIC_API_KEY || '';
 const ANTHROPIC_MODEL= process.env.ANTHROPIC_MODEL || 'claude-opus-5'; // 비용 아끼려면 claude-haiku-4-5
 const LLM_PROVIDER   = process.env.LLM_PROVIDER || (ANTHROPIC_KEY ? 'anthropic' : (GEMINI_KEY ? 'gemini' : 'none'));
@@ -311,8 +317,8 @@ const SYS_PROMPT = `당신은 'MRO Copilot', 항공정비 현장에서 정비사
 - 현장용어(메가네·야마·복스 등)로 물어도 이해하고, 필요하면 표준용어를 함께 알려주세요.
 - 이름을 물으면 'MRO Copilot'이라고 답하고, 무엇을 할 수 있냐고 물으면: 부품 결함 이력·검사 절차·필요 공구·주의사항·과거 사례 안내, 로봇 촬영 결과 정리, 작업기록 초안 도움 을 한다고 답하세요.`;
 
-// Gemini generateContent 호출 (Node 내장 https만)
-function geminiComplete(system, turns){
+// Gemini generateContent 호출 (Node 내장 https만) — model 은 GEMINI_CHAIN 에서 넘어온다
+function geminiCall(model, system, turns){
   return new Promise((resolve, reject)=>{
     const contents = turns.map(t=>({ role: t.role==='model'?'model':'user', parts:[{text:t.text}] }));
     const payload = JSON.stringify({
@@ -320,12 +326,13 @@ function geminiComplete(system, turns){
       contents,
       // gemini-flash-latest는 thinking 모델 → 생각이 토큰을 먹어 답이 잘림.
       // 생각 끄기(thinkingBudget:0)는 이 모델에서 빈 응답 → 대신 여유를 넉넉히 준다.
-      generationConfig:{ temperature:0.6, maxOutputTokens:2048 }  // 자연스러움 위해 온도↑
+      //   2048로는 생각만 하다 끝나 '빈 응답'으로 떨어지는 일이 잦았다.
+      generationConfig:{ temperature:0.6, maxOutputTokens:8192 }  // 자연스러움 위해 온도↑
     });
     const req = https.request({
       method:'POST',
       hostname:'generativelanguage.googleapis.com',
-      path:'/v1beta/models/'+GEMINI_MODEL+':generateContent?key='+GEMINI_KEY,
+      path:'/v1beta/models/'+model+':generateContent?key='+GEMINI_KEY,
       headers:{ 'Content-Type':'application/json', 'Content-Length':Buffer.byteLength(payload) }
     }, r=>{
       let d=''; r.on('data',c=>d+=c);
@@ -344,6 +351,22 @@ function geminiComplete(system, turns){
     req.on('error', reject);
     req.write(payload); req.end();
   });
+}
+
+// 모델 체인을 순서대로 시도 — 하나가 할당량·빈 응답으로 막혀도 다음 모델이 답한다.
+async function geminiComplete(system, turns){
+  let last = null;
+  for(const model of GEMINI_CHAIN){
+    try{
+      const text = await geminiCall(model, system, turns);
+      if(model !== GEMINI_CHAIN[0]) console.log('  · LLM 대체모델 사용: '+model);
+      return text;
+    }catch(e){
+      last = e;
+      console.log('  ! '+model+' 실패('+e.message+')');
+    }
+  }
+  throw new Error((last && last.message) || 'LLM 실패');
 }
 
 // Claude (Anthropic Messages API) 호출 (Node 내장 https만)
@@ -1073,11 +1096,18 @@ const server = http.createServer(async (req,res)=>{
     }
     try{
       // LLM 켜져 있으면 RAG+LLM 우선. 실패하면 아래 규칙 기반으로 자동 fallback.
+      //   실패해도 화면엔 규칙 답변이 태연히 나가므로 "챗봇이 멍청해졌다"로만 보인다.
+      //   → 사유를 llmError 로 함께 내보내 화면에서 확인할 수 있게 한다.
+      let llmErr = null;
       if(LLM_ON){
+        // geminiComplete 안에서 모델 체인을 순서대로 시도한다 — 전부 막혔을 때만 여기로 온다.
         try{
           const out = await answerLLM(q, history, wctx);
           return json(res, {q, part:out.part, mode:'llm', answer:out.answer});
-        }catch(e){ console.log('  ! LLM fallback('+e.message+') → 규칙 기반'); }
+        }catch(e){
+          llmErr = e.message;
+          console.log('  ! LLM fallback('+e.message+') → 규칙 기반');
+        }
       }
       const intent = classifyIntent(q);        // ① 의도 (규칙)
       // ② 지식 조회 — Neo4j 죽어있어도 500 대신 빈 데이터로 우아하게 처리
@@ -1086,7 +1116,7 @@ const server = http.createServer(async (req,res)=>{
       try{ data = (await cypher(Q_PART, {part}))[0] || null; }catch(e){}
       try{ procs = await cypher(Q_PROCEDURE, {part}); }catch(e){}
       const answer = composeAnswer(intent, part, data, procs);  // ③ 답변 생성
-      return json(res, {q, intent, part, mode:'rule', answer});
+      return json(res, {q, intent, part, mode:'rule', llmError:llmErr, answer});
     }catch(e){ return json(res, {error:e.message}, 500); }
   }
 
@@ -1355,6 +1385,6 @@ server.listen(PORT, async ()=>{
   }
   // LLM·현장용어 상태는 Neo4j 성패와 무관하게 항상 표시
   console.log('  ✓ 현장용어사전 '+FIELD_TERMS.length+'개 로드');
-  console.log('  '+(LLM_ON?'✓ LLM 켜짐 — '+LLM_PROVIDER+' ('+LLM_MODEL+')':'· LLM 꺼짐 — 규칙 기반 (API 키 없음)'));
+  console.log('  '+(LLM_ON?'✓ LLM 켜짐 — '+LLM_PROVIDER+' ('+(LLM_PROVIDER==='gemini'?GEMINI_CHAIN.join(' → '):LLM_MODEL)+')':'· LLM 꺼짐 — 규칙 기반 (API 키 없음)'));
   console.log('  ✓ 브라우저에서 열기:  http://localhost:'+PORT+'\n');
 });
