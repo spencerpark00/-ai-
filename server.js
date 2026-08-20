@@ -114,6 +114,7 @@ function cypher(statement, parameters){
       headers:{ 'Authorization':AUTH, 'Content-Type':'application/json',
                 'Accept':'application/json', 'Content-Length':Buffer.byteLength(body) }
     }, res => {
+      res.setEncoding('utf8');      // 청크 경계에서 한글이 잘리지 않게
       let d=''; res.on('data',c=>d+=c);
       res.on('end',()=>{
         try{
@@ -335,6 +336,7 @@ function geminiCall(model, system, turns){
       path:'/v1beta/models/'+model+':generateContent?key='+GEMINI_KEY,
       headers:{ 'Content-Type':'application/json', 'Content-Length':Buffer.byteLength(payload) }
     }, r=>{
+      r.setEncoding('utf8');        // 청크 경계에서 한글이 잘리지 않게
       let d=''; r.on('data',c=>d+=c);
       r.on('end',()=>{
         try{
@@ -387,6 +389,7 @@ function anthropicComplete(system, turns){
       headers:{ 'x-api-key':ANTHROPIC_KEY, 'anthropic-version':'2023-06-01',
                 'content-type':'application/json', 'content-length':Buffer.byteLength(payload) }
     }, r=>{
+      r.setEncoding('utf8');        // 청크 경계에서 한글이 잘리지 않게
       let d=''; r.on('data',c=>d+=c);
       r.on('end',()=>{
         try{
@@ -1369,6 +1372,7 @@ function json(res, obj, code){
 // POST 요청 본문 읽기 (대화기록 수신용)
 function readBody(req){
   return new Promise((resolve)=>{
+    req.setEncoding('utf8');        // 청크 경계에서 한글이 잘리지 않게
     let d=''; req.on('data',c=>{ d+=c; if(d.length>1e6) d=d.slice(0,1e6); });
     req.on('end',()=>resolve(d)); req.on('error',()=>resolve(''));
   });
