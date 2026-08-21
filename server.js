@@ -233,6 +233,9 @@ const Q_PROCEDURE = `
 MATCH (p:Part) WHERE toUpper(p.name)=toUpper($part)
 MATCH (d:Defect)-[:OCCURS_ON]->(p)
 MATCH (d)-[:REQUIRES_PROCEDURE]->(pr:Procedure)
+MATCH (pr)-[:TARGETS]->(p)
+// Defect 노드는 이름으로만 식별되어 계통 간 공유된다(CORRODED 는 블레이드에도 외판에도 붙는다).
+// 결함만 타고 가면 다른 계통 절차까지 나오므로, 절차가 이 부품을 대상으로 하는지 확인한다.
 WITH pr, collect(DISTINCT d.name) AS defects
 OPTIONAL MATCH (pr)-[:HAS_STEP]->(st:Step)
 WITH pr, defects, st ORDER BY st.seq

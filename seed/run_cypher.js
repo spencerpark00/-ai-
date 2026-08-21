@@ -57,6 +57,7 @@ function cypher(statement) {
       headers: { 'Authorization': AUTH, 'Content-Type': 'application/json',
                  'Accept': 'application/json', 'Content-Length': Buffer.byteLength(body) }
     }, res => {
+      res.setEncoding('utf8');   // 청크 경계에서 한글이 잘리지 않게
       let d = ''; res.on('data', c => d += c);
       res.on('end', () => {
         try {

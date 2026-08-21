@@ -73,6 +73,12 @@ MERGE (d)-[:REQUIRES_PROCEDURE]->(pr);
 MATCH (d:Defect)-[:OCCURS_ON]->(:Part {name:'VANE'}), (pr:Procedure {id:'PR-BLADE-VIS'})
 MERGE (d)-[:REQUIRES_PROCEDURE]->(pr);
 
+// 절차가 "어느 부품을 대상으로 하는가"를 명시한다.
+//   Defect 노드는 이름만으로 식별되어 계통 간 공유된다(CORRODED 는 블레이드에도 외판에도 붙는다).
+//   그래서 결함만 타고 가면 다른 계통의 절차까지 딸려온다 — TARGETS 로 대상 부품을 고정한다.
+MATCH (pr:Procedure {id:'PR-BLADE-VIS'}), (p:Part {name:'BLADE'}) MERGE (pr)-[:TARGETS]->(p);
+MATCH (pr:Procedure {id:'PR-BLADE-VIS'}), (v:Part {name:'VANE'})  MERGE (pr)-[:TARGETS]->(v);
+
 MATCH (pr:Procedure {id:'PR-BLADE-VIS'})
 MERGE (st:Step {id:'ST-BLADE-1'}) SET st.seq=1, st.name='블레이드 개체 식별 — 스테이지·일련번호 대조'
 MERGE (pr)-[:HAS_STEP]->(st);
