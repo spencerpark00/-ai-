@@ -826,7 +826,12 @@ async function askServer(term){
 }
 function renderBot(a){
   if(!a) return '<div class="botmsg">답변을 만들지 못했어요.</div>';
-  const text=(a.text||'').replace(/\n/g,'<br>');
+  // LLM은 강조를 **굵게** 로 보낸다. 그대로 두면 화면에 별표가 찍힌다.
+  //   먼저 HTML 특수문자를 막고, 그다음 굵게만 태그로 바꾼다.
+  const text=(a.text||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/\n/g,'<br>');
   const chips=(a.chips||[]).map(c=>'<span class="rchip" onclick="askServer(\''+c+' '+lastPart+'\')">'+c+'</span>').join('');
   return '<div class="botmsg">'+text+(chips?'<div class="rchips">'+chips+'</div>':'')+'</div>';
 }
